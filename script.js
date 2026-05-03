@@ -1,3 +1,4 @@
+let audioActual = null;
 // Obtenemos el contenedor donde se dibujan los chats
 const chatBox = document.getElementById("chat-box");
 
@@ -60,9 +61,14 @@ async function enviarMensaje(texto) {
         }, fragmentos.length * 800);
 
         if (data.audio) {
-            // Reproducimos el audio exacto que mandó Python
-            const audioIA = new Audio("data:audio/mp3;base64," + data.audio);
-            audioIA.play();
+            // 1. Si ya hay un audio sonando, lo pausamos y reiniciamos
+            if (audioActual) {
+                audioActual.pause();
+                audioActual.currentTime = 0;
+            }
+            // 2. Cargamos el nuevo audio en la variable global y le damos play
+            audioActual = new Audio("data:audio/mp3;base64," + data.audio);
+            audioActual.play();
         }
 
     } catch (error) {
