@@ -18,6 +18,7 @@ import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
 import datetime
+from PIL import Image, ImageTk
 import hashlib
 
 
@@ -89,6 +90,9 @@ CARRERAS_NOMBRE = {
 # ══════════════════════════════════════════════════════════════════
 #  CAPA DE BASE DE DATOS
 # ══════════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════════
+#  CAPA DE BASE DE DATOS ACTUALIZADA (SISTEMA ITSABOT)
+# ══════════════════════════════════════════════════════════════════
 class Database:
     def __init__(self):
         self.conn = None
@@ -100,21 +104,17 @@ class Database:
                 host="localhost",
                 user="root",
                 password="blaky2507",
-                database="lincebot",
-                port=3307,
+                database="itsabot",  # <- Conectado a la nueva BD
+                port=3306,  # <- Asegúrate que sea tu puerto correcto
+                collation="utf8mb4_unicode_ci",  # <- Blindaje contra errores de idioma
                 connection_timeout=6,
             )
         except Error as e:
-            messagebox.showerror(
-                "Error de conexion",
-                f"No se pudo conectar a la base de datos:\n\n{e}\n\n"
-                "Verifica que MySQL este activo en el puerto 3307.",
-            )
+            messagebox.showerror("Error de conexion", f"No se pudo conectar a la base de datos:\n\n{e}")
 
     def _ok(self) -> bool:
         try:
-            if self.conn and self.conn.is_connected():
-                return True
+            if self.conn and self.conn.is_connected(): return True
             self._connect()
             return self.conn is not None
         except Exception:
@@ -122,39 +122,29 @@ class Database:
 
     # ── Login / registro de usuarios ──────────────────────────────
     def login(self, correo: str, password: str):
-        if not self._ok():
-            return None
+        if not self._ok(): return None
         try:
             cur = self.conn.cursor(dictionary=True)
-            cur.execute("SELECT * FROM usuarios WHERE correo = %s LIMIT 1", (correo,))
+            cur.execute("SELECT * FROM usuarios WHERE correo = %s AND activo = 1 LIMIT 1", (correo,))
             user = cur.fetchone()
             cur.close()
-            if not user:
-                return None
-            stored = str(user.get("password",
-                          user.get("contrasena",
-                          user.get("contraseña", ""))))
-            if stored in (
-                password,
-                hashlib.md5(password.encode()).hexdigest(),
-                hashlib.sha256(password.encode()).hexdigest(),
-            ):
+            if not user: return None
+
+            # Validación simple (Si encriptaste, ajusta aquí)
+            if user.get("password") == password:
                 return user
             return None
         except Exception as e:
             messagebox.showerror("Error login", str(e))
             return None
 
-    def register(self, nombre, rol, num_trabajador, correo, password) -> bool:
-        if not self._ok():
-            return False
+    def register(self, nombre, correo, password) -> bool:  # Se quitaron rol y num_trabajador
+        if not self._ok(): return False
         try:
             cur = self.conn.cursor()
             cur.execute(
-                "INSERT INTO usuarios "
-                "(nombre, rol, numero_trabajador, correo, password) "
-                "VALUES (%s, %s, %s, %s, %s)",
-                (nombre, rol, num_trabajador, correo, password),
+                "INSERT INTO usuarios (nombre, correo, password) VALUES (%s, %s, %s)",
+                (nombre, correo, password)
             )
             self.conn.commit()
             cur.close()
@@ -163,144 +153,50 @@ class Database:
             messagebox.showerror("Error al registrar", str(e))
             return False
 
-    # ── guardar_en_mysql  (tu funcion original, integrada) ─────────
-    def guardar_prospecto(self, datos: dict) -> bool:
-        """
-        Inserta en prospectos.
-        datos: nombre, correo, prepa, carrera
-        """
-        if not self._ok():
-            return False
-        try:
-            fecha_actual  = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            carrera_texto = datos.get("carrera", "").lower()
-            id_carrera    = DICCIONARIO_CARRERAS.get(carrera_texto, None)
-
-            sql = (
-                "INSERT INTO prospectos "
-                "(nombre_completo, correo, bachillerato_origen, "
-                " id_carrera_interes, fecha_registro) "
-                "VALUES (%s, %s, %s, %s, %s)"
-            )
-            valores = (
-                datos.get("nombre"),
-                datos.get("correo"),
-                datos.get("prepa"),
-                id_carrera,
-                fecha_actual,
-            )
-            cur = self.conn.cursor()
-            cur.execute(sql, valores)
-            self.conn.commit()
-            cur.close()
-            print(f"Prospecto '{datos.get('nombre')}' guardado. id_carrera={id_carrera}")
-            return True
-        except Exception as e:
-            print(f"Error al guardar prospecto: {e}")
-            messagebox.showerror("Error", f"No se pudo guardar el prospecto:\n{e}")
-            return False
-
-    # ── Consultas ──────────────────────────────────────────────────
-    def get_prospectos(self, filtro_carrera_id=None):
-        if not self._ok():
-            return []
+    # ── Consultas Directas a las Vistas SQL ──────────────────────────
+    def get_prospectos(self, filtro_carrera_nombre=None):
+        if not self._ok(): return []
         try:
             cur = self.conn.cursor(dictionary=True)
-            if filtro_carrera_id is not None:
-                cur.execute(
-                    "SELECT p.*, c.nombre_carrera "
-                    "FROM prospectos p "
-                    "LEFT JOIN carreras c ON p.id_carrera_interes = c.id "
-                    "WHERE p.id_carrera_interes = %s "
-                    "ORDER BY p.fecha_registro DESC",
-                    (filtro_carrera_id,),
-                )
+            # Gracias a la vista, ya no hacemos JOINs raros
+            if filtro_carrera_nombre and filtro_carrera_nombre != "Todas las carreras":
+                cur.execute("SELECT * FROM v_prospectos WHERE nombre_carrera = %s ORDER BY fecha_registro DESC",
+                            (filtro_carrera_nombre,))
             else:
-                cur.execute(
-                    "SELECT p.*, c.nombre_carrera "
-                    "FROM prospectos p "
-                    "LEFT JOIN carreras c ON p.id_carrera_interes = c.id "
-                    "ORDER BY p.fecha_registro DESC"
-                )
+                cur.execute("SELECT * FROM v_prospectos ORDER BY fecha_registro DESC")
             rows = cur.fetchall()
             cur.close()
-        except Exception:
-            # Fallback sin JOIN si no existe tabla carreras
-            try:
-                cur = self.conn.cursor(dictionary=True)
-                if filtro_carrera_id is not None:
-                    cur.execute(
-                        "SELECT * FROM prospectos "
-                        "WHERE id_carrera_interes = %s "
-                        "ORDER BY fecha_registro DESC",
-                        (filtro_carrera_id,),
-                    )
-                else:
-                    cur.execute("SELECT * FROM prospectos ORDER BY fecha_registro DESC")
-                rows = cur.fetchall()
-                cur.close()
-            except Exception as e2:
-                messagebox.showerror("Error consulta", str(e2))
-                return []
-
-        for r in rows:
-            if not r.get("nombre_carrera"):
-                r["nombre_carrera"] = CARRERAS_NOMBRE.get(
-                    r.get("id_carrera_interes"), "—"
-                )
-        return rows
+            return rows
+        except Exception as e:
+            messagebox.showerror("Error consulta", str(e))
+            return []
 
     def get_stats(self) -> dict:
-        if not self._ok():
-            return {}
+        if not self._ok(): return {}
         stats = {}
         try:
             cur = self.conn.cursor(dictionary=True)
-            now = datetime.datetime.now()
 
-            cur.execute("SELECT COUNT(*) AS t FROM prospectos")
-            stats["total"] = cur.fetchone()["t"]
+            # Consumimos la nueva vista v_estadisticas en 1 sola línea
+            cur.execute("SELECT * FROM v_estadisticas")
+            v_stats = cur.fetchone()
 
+            if v_stats:
+                stats["total"] = v_stats["total_prospectos"]
+                stats["mes"] = v_stats["prospectos_mes_actual"]
+                stats["bachilleratos"] = v_stats["bachilleratos_distintos"]
+                stats["carrera_top"] = v_stats["carrera_mas_popular"]
+                stats["finalizados"] = v_stats.get("prospectos_finalizados", 0)
+
+            # Extraemos los datos agrupados para pintar tus barras
             cur.execute(
-                "SELECT COUNT(*) AS m FROM prospectos "
-                "WHERE MONTH(fecha_registro)=%s AND YEAR(fecha_registro)=%s",
-                (now.month, now.year),
-            )
-            stats["mes"] = cur.fetchone()["m"]
-
-            cur.execute(
-                "SELECT COUNT(DISTINCT bachillerato_origen) AS b FROM prospectos"
-            )
-            stats["bachilleratos"] = cur.fetchone()["b"]
-
-            cur.execute(
-                "SELECT id_carrera_interes AS cid, COUNT(*) AS cnt "
-                "FROM prospectos GROUP BY id_carrera_interes ORDER BY cnt DESC LIMIT 1"
-            )
-            row = cur.fetchone()
-            stats["carrera_top"] = CARRERAS_NOMBRE.get(row["cid"], "—") if row else "—"
-            stats["carrera_pct"] = (
-                round(row["cnt"] / stats["total"] * 100)
-                if row and stats["total"] else 0
-            )
-
-            cur.execute(
-                "SELECT bachillerato_origen AS bach, COUNT(*) AS cnt "
-                "FROM prospectos GROUP BY bachillerato_origen "
-                "ORDER BY cnt DESC LIMIT 6"
-            )
+                "SELECT nombre_bachillerato AS bach, COUNT(*) AS cnt FROM v_prospectos GROUP BY nombre_bachillerato ORDER BY cnt DESC LIMIT 6")
             stats["bach_stats"] = cur.fetchall()
 
             cur.execute(
-                "SELECT id_carrera_interes AS cid, COUNT(*) AS cnt "
-                "FROM prospectos GROUP BY id_carrera_interes "
-                "ORDER BY cnt DESC LIMIT 6"
-            )
-            stats["carrera_stats"] = [
-                {"nombre_carrera": CARRERAS_NOMBRE.get(r["cid"], "—"),
-                 "cnt": r["cnt"]}
-                for r in cur.fetchall()
-            ]
+                "SELECT nombre_carrera AS nombre_carrera, COUNT(*) AS cnt FROM v_prospectos GROUP BY nombre_carrera ORDER BY cnt DESC LIMIT 6")
+            stats["carrera_stats"] = cur.fetchall()
+
             cur.close()
         except Exception as e:
             messagebox.showerror("Error estadisticas", str(e))
@@ -695,8 +591,9 @@ class MainWin(tk.Toplevel):
     COLS = [
         ("nombre_completo",     "Nombre completo",   22),
         ("correo",              "Correo",            22),
-        ("bachillerato_origen", "Bachillerato",      14),
+        ("nombre_bachillerato", "Bachillerato", 14),
         ("nombre_carrera",      "Carrera de interés",18),
+        ("estatus_proceso", "Estatus de Admisión", 14),
         ("fecha_registro",      "Fecha",             12),
     ]
 
@@ -883,47 +780,58 @@ class MainWin(tk.Toplevel):
 
 
 # ══════════════════════════════════════════════════════════════════
-#  LOGIN DIRECTO EN VENTANA RAIZ  (sin Toplevel, sin ventana en blanco)
+#  LOGIN DIRECTO EN VENTANA RAIZ (Con imagen de fondo y sin rol)
 # ══════════════════════════════════════════════════════════════════
 class LoginRoot(tk.Tk):
     """
     Ventana de login construida sobre la raíz Tk.
-    Evita el bug de ventana en blanco en Windows cuando se usa
-    Toplevel + withdraw() sobre la raíz.
     """
+
     def __init__(self, db: Database):
         super().__init__()
         self.db = db
-        self.title("Sistema Lince — Iniciar Sesión")
+        self.title("Sistema ITSA — Iniciar Sesión")  # Nuevo nombre
         self.geometry("860x520")
         self.resizable(False, False)
         self.configure(bg=C_VINO)
+
         # Centrar en pantalla
         self.update_idletasks()
-        x = (self.winfo_screenwidth()  - 860) // 2
+        x = (self.winfo_screenwidth() - 860) // 2
         y = (self.winfo_screenheight() - 520) // 2
         self.geometry(f"860x520+{x}+{y}")
+
+        # --- AQUÍ CARGAMOS LA IMAGEN DE FONDO ---
+        try:
+            # Asegúrate de tener una imagen llamada "fondo_login.jpg" en la misma carpeta
+            self.img_obj = Image.open("fondo_login.jpeg")
+            self.img_obj = self.img_obj.resize((860, 520), Image.Resampling.LANCZOS)
+            self.img_tk = ImageTk.PhotoImage(self.img_obj)
+
+            # Ponemos el Label de fondo primero para que quede atrás de todo
+            self.lbl_fondo = tk.Label(self, image=self.img_tk)
+            self.lbl_fondo.place(x=0, y=0, relwidth=1, relheight=1)
+        except Exception as e:
+            print(f"⚠️ No se pudo cargar la imagen de fondo: {e}")
+            # Si falla la imagen, simplemente se queda el fondo C_VINO que configuramos arriba
+        # ------------------------------------------
+
         self._ui()
 
     def _ui(self):
-        # Fondo decorativo
-        tk.Label(self, text="PROCESO ADMISIÓN",
-                 bg=C_VINO, fg="#5C0000",
-                 font=("Helvetica", 38, "bold")).place(x=0, y=18, width=860)
-        tk.Label(self, text="PROCESO ADMISIÓN",
-                 bg=C_VINO, fg="#5C0000",
-                 font=("Helvetica", 38, "bold")).place(x=0, y=68, width=860)
-
-        # Tarjeta blanca
+        # Tarjeta blanca central
         f = tk.Frame(self, bg=C_BLANCO)
-        f.place(relx=.5, rely=.44, anchor="center", width=370, height=300)
+        f.place(relx=.5, rely=.5, anchor="center", width=370, height=330)
 
+        # Franja decorativa roja en la tarjeta
         tk.Frame(f, bg=C_VINO, height=4).pack(fill="x")
+
         tk.Label(f, text="Iniciar Sesión", bg=C_BLANCO, fg=C_VINO,
                  font=("Georgia", 18, "bold")).pack(pady=(22, 16))
 
         self._e_correo = self._field(f, "Correo electrónico", False)
         self._e_correo.pack(fill="x", padx=30, ipady=9, pady=(0, 10))
+
         self._e_pass = self._field(f, "Contraseña", True)
         self._e_pass.pack(fill="x", padx=30, ipady=9, pady=(0, 18))
 
@@ -932,27 +840,22 @@ class LoginRoot(tk.Tk):
 
         lnk = tk.Label(f, text="Crear cuenta", bg=C_BLANCO,
                        fg=C_SUBTEXTO, font=F_BOLD, cursor="hand2")
-        lnk.pack()
+        lnk.pack(pady=(5, 0))
         lnk.bind("<Button-1>", lambda _: self._ir_reg())
-        lnk.bind("<Enter>",    lambda _: lnk.config(fg=C_VINO))
-        lnk.bind("<Leave>",    lambda _: lnk.config(fg=C_SUBTEXTO))
-
-        tk.Label(self, text="EL  ITSA  SE  TRANSFORMA",
-                 bg=C_VINO, fg=C_BLANCO,
-                 font=("Helvetica", 13, "bold")).place(
-            relx=.5, rely=.93, anchor="center")
+        lnk.bind("<Enter>", lambda _: lnk.config(fg=C_VINO))
+        lnk.bind("<Leave>", lambda _: lnk.config(fg=C_SUBTEXTO))
 
     def _field(self, parent, ph, secret):
         e = tk.Entry(parent, font=F_BODY, bg="#F0F0F0", fg=C_SUBTEXTO,
                      relief="flat", bd=0, insertbackground=C_VINO)
         e.insert(0, ph)
         if secret:
-            e.bind("<FocusIn>",  lambda _: (e.get() == ph and (
+            e.bind("<FocusIn>", lambda _: (e.get() == ph and (
                 e.delete(0, "end"), e.config(show="*", fg=C_TEXTO))))
             e.bind("<FocusOut>", lambda _: (not e.get() and (
                 e.config(show="", fg=C_SUBTEXTO), e.insert(0, ph))))
         else:
-            e.bind("<FocusIn>",  lambda _: (e.get() == ph and (
+            e.bind("<FocusIn>", lambda _: (e.get() == ph and (
                 e.delete(0, "end"), e.config(fg=C_TEXTO))))
             e.bind("<FocusOut>", lambda _: (not e.get() and (
                 e.config(fg=C_SUBTEXTO), e.insert(0, ph))))
@@ -973,13 +876,11 @@ class LoginRoot(tk.Tk):
                                  "Correo o contraseña incorrectos.", parent=self)
 
     def _ir_reg(self):
-        """Oculta el login y abre registro como Toplevel."""
         self.withdraw()
         reg = RegisterRoot(self, self.db)
         reg.grab_set()
 
     def _abrir_main(self, user):
-        """Destruye el login y abre la ventana principal."""
         self.destroy()
         root_main = tk.Tk()
         root_main.withdraw()
@@ -991,22 +892,20 @@ class LoginRoot(tk.Tk):
 
 class RegisterRoot(tk.Toplevel):
     """
-    Registro de usuario como Toplevel del LoginRoot.
-    Al terminar regresa al login.
+    Registro de usuario (Limpio: Sin rol y sin num_trabajador)
     """
-    ROLES = ["Administrador", "Docente", "Coordinador", "Otro"]
 
     def __init__(self, login_root: LoginRoot, db: Database):
         super().__init__(login_root)
         self.login_root = login_root
         self.db = db
-        self.title("Sistema Lince — Crear Cuenta")
+        self.title("Sistema ITSA — Crear Cuenta")
         self.geometry("860x540")
         self.resizable(False, False)
         self.configure(bg=C_BLANCO)
-        # Centrar
+
         self.update_idletasks()
-        x = (self.winfo_screenwidth()  - 860) // 2
+        x = (self.winfo_screenwidth() - 860) // 2
         y = (self.winfo_screenheight() - 540) // 2
         self.geometry(f"860x540+{x}+{y}")
         self.protocol("WM_DELETE_WINDOW", self._volver)
@@ -1017,17 +916,17 @@ class RegisterRoot(tk.Toplevel):
         left.place(x=0, y=0, width=540, height=540)
 
         tk.Label(left, text="Crear Cuenta", bg=C_BLANCO, fg=C_VINO,
-                 font=("Georgia", 20, "bold")).pack(pady=(36, 4))
-        tk.Label(left, text="Tecnológico de Atlixco — Sistema Lince",
-                 bg=C_BLANCO, fg=C_SUBTEXTO, font=F_SMALL).pack(pady=(0, 20))
+                 font=("Georgia", 20, "bold")).pack(pady=(45, 4))
+        tk.Label(left, text="Tecnológico de Atlixco — Sistema de Admisiones",
+                 bg=C_BLANCO, fg=C_SUBTEXTO, font=F_SMALL).pack(pady=(0, 25))
 
         self._ef = {}
+        # LISTA DE CAMPOS LIMPIA
         for key, ph, sec in [
-            ("nombre",         "Nombre completo",      False),
-            ("num_trabajador", "Número de trabajador", False),
-            ("correo",         "Correo electrónico",   False),
-            ("password",       "Contraseña",           True),
-            ("confirm",        "Confirmar contraseña", True),
+            ("nombre", "Nombre completo", False),
+            ("correo", "Correo electrónico", False),
+            ("password", "Contraseña", True),
+            ("confirm", "Confirmar contraseña", True),
         ]:
             e = tk.Entry(left, font=F_BODY, bg="#F0F0F0",
                          fg=C_SUBTEXTO, relief="flat", bd=0,
@@ -1035,70 +934,64 @@ class RegisterRoot(tk.Toplevel):
                          show=("*" if sec else ""))
             e.insert(0, ph)
             if sec:
-                e.bind("<FocusIn>",  lambda ev, en=e, p=ph: (
-                    en.get() == p and (en.delete(0, "end"),
-                                       en.config(show="*", fg=C_TEXTO))))
+                e.bind("<FocusIn>", lambda ev, en=e, p=ph: (
+                        en.get() == p and (en.delete(0, "end"),
+                                           en.config(show="*", fg=C_TEXTO))))
                 e.bind("<FocusOut>", lambda ev, en=e, p=ph: (
-                    not en.get() and (en.config(show="", fg=C_SUBTEXTO),
-                                      en.insert(0, p))))
+                        not en.get() and (en.config(show="", fg=C_SUBTEXTO),
+                                          en.insert(0, p))))
             else:
-                e.bind("<FocusIn>",  lambda ev, en=e, p=ph: (
-                    en.get() == p and (en.delete(0, "end"),
-                                       en.config(fg=C_TEXTO))))
+                e.bind("<FocusIn>", lambda ev, en=e, p=ph: (
+                        en.get() == p and (en.delete(0, "end"),
+                                           en.config(fg=C_TEXTO))))
                 e.bind("<FocusOut>", lambda ev, en=e, p=ph: (
-                    not en.get() and (en.config(fg=C_SUBTEXTO),
-                                      en.insert(0, p))))
-            e.pack(fill="x", padx=48, ipady=9, pady=4)
+                        not en.get() and (en.config(fg=C_SUBTEXTO),
+                                          en.insert(0, p))))
+            e.pack(fill="x", padx=48, ipady=9, pady=5)
             self._ef[key] = e
 
-        self._rol = tk.StringVar(value="Selecciona un Rol")
-        ttk.Combobox(left, textvariable=self._rol, values=self.ROLES,
-                     state="readonly", font=F_BODY).pack(
-            fill="x", padx=48, ipady=5, pady=4)
-
         btn_pill(left, "Registrarse", self._reg, py=10).pack(
-            fill="x", padx=48, pady=(20, 0))
+            fill="x", padx=48, pady=(25, 0))
 
         lnk = tk.Label(left, text="¿Ya tienes cuenta? Inicia sesión",
                        bg=C_BLANCO, fg=C_SUBTEXTO, font=F_SMALL, cursor="hand2")
-        lnk.pack(pady=8)
+        lnk.pack(pady=10)
         lnk.bind("<Button-1>", lambda _: self._volver())
 
-        # Panel decorativo derecho
+        # Panel derecho
         right = tk.Frame(self, bg=C_VINO)
         right.place(x=540, y=0, width=320, height=540)
+
         tk.Label(right, text="TECNOLÓGICO\nATLIXCO",
                  bg=C_VINO, fg=C_BLANCO,
                  font=("Helvetica", 24, "bold"), justify="center").place(
-            relx=.5, rely=.28, anchor="center")
-        tk.Label(right, text="Sistema Lince\nAdmisiones",
+            relx=.5, rely=.40, anchor="center")
+
+        tk.Label(right, text="Sistema de Admisiones",
                  bg=C_VINO, fg="#FF8A80",
                  font=("Helvetica", 12), justify="center").place(
-            relx=.5, rely=.45, anchor="center")
+            relx=.5, rely=.55, anchor="center")
 
     def _volver(self):
         self.destroy()
         self.login_root.deiconify()
 
     def _reg(self):
-        ph   = {"Nombre completo", "Número de trabajador",
-                "Correo electrónico", "Contraseña", "Confirmar contraseña"}
+        ph = {"Nombre completo", "Correo electrónico", "Contraseña", "Confirmar contraseña"}
         vals = {k: e.get().strip() for k, e in self._ef.items()}
+
         if any(v in ph or not v for v in vals.values()):
             messagebox.showwarning("Campos incompletos",
                                    "Completa todos los campos.", parent=self)
             return
-        if self._rol.get() == "Selecciona un Rol":
-            messagebox.showwarning("Rol requerido",
-                                   "Selecciona un rol.", parent=self)
-            return
+
         if vals["password"] != vals["confirm"]:
             messagebox.showerror("Error",
                                  "Las contraseñas no coinciden.", parent=self)
             return
-        if self.db.register(vals["nombre"], self._rol.get(),
-                            vals["num_trabajador"],
-                            vals["correo"], vals["password"]):
+
+        # Llamada a la base de datos limpia (Solo 3 parámetros)
+        if self.db.register(vals["nombre"], vals["correo"], vals["password"]):
             messagebox.showinfo("Cuenta creada",
                                 "Registro exitoso. Ahora inicia sesión.", parent=self)
             self._volver()
@@ -1121,7 +1014,7 @@ def _apply_style(root):
 
 
 if __name__ == "__main__":
-    db  = Database()
+    db = Database()
     app = LoginRoot(db)
     _apply_style(app)
     app.mainloop()
