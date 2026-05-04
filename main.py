@@ -15,9 +15,6 @@ from dotenv import load_dotenv
 
 
 
-def es_nombre_valido(nombre):
-    return len(nombre) >= 3 and not nombre.isdigit()
-
 def es_edad_valida(edad):
     return edad.isdigit() and 14 <= int(edad) <= 60
 
@@ -119,55 +116,60 @@ async def generar_audio_neuronal(texto):
 
 def validar_y_obtener_bachillerato(nombre_usuario, cliente_groq):
     try:
-        conexion = mysql.connector.connect(host="localhost", user="root", password="blaky2507", database="itsabot")
+        conexion = mysql.connector.connect(host="localhost", user="root", password="blaky2507", database="itsabot", collation="utf8mb4_unicode_ci")
         cursor = conexion.cursor()
 
-        # 1. Sacamos la lista de bachilleratos que YA tienes en tu base de datos
+        # Sacamos las escuelas de la BD
         cursor.execute("SELECT id, nombre FROM bachilleratos")
         escuelas_db = cursor.fetchall()
         lista_nombres = [escuela[1] for escuela in escuelas_db]
-        diccionario_escuelas = {escuela[1]: escuela[0] for escuela in escuelas_db}  # Para encontrar el ID rápido
 
-        # 2. Le damos instrucciones súper estrictas a la IA
+        # Diccionario con todo en minúsculas para que no haya fallos al buscar
+        diccionario_escuelas = {escuela[1].lower(): escuela[0] for escuela in escuelas_db}
+
         prompt = f"""
-        Eres un validador estricto de escuelas de nivel medio superior (bachilleratos/preparatorias) en México.
-        Lista de escuelas ya registradas en nuestra base de datos: {lista_nombres}
+        Eres un validador estricto de escuelas preparatorias/bachilleratos en México.
+        Lista de escuelas registradas: {lista_nombres}
 
         Escuela escrita por el usuario: "{nombre_usuario}"
 
         Reglas:
-        1. Si lo que escribió el usuario es una variación, sinónimo, acrónimo o está mal escrito pero claramente se refiere a una escuela de la lista (ej. "cecyte 5" = "CECyTE 5", o "centro de bachillerato 16" = "CBTis 16"), responde SOLAMENTE con: EXISTE:|Nombre exacto de la lista
-        2. Si NO está en la lista, analiza si es un bachillerato real (especialmente en Puebla o México). Si es real, corrige su ortografía y responde SOLAMENTE con: NUEVA:|Nombre formal corregido
-        3. Si el usuario escribió groserías, letras al azar (ej. "asdf"), un preescolar, o algo que claramente no es una escuela, responde SOLAMENTE con: FALSA
+        1. Si es una variación, sinónimo o acrónimo de una escuela de la lista, responde exactamente:
+           OK_EXISTE|Nombre exacto de la lista
+        2. Si NO está en la lista pero es un bachillerato real, corrige su ortografía y responde:
+           OK_NUEVA|Nombre formal corregido
+        3. Si son letras al azar ("asdf"), groserías o no es una escuela, responde exactamente:
+           FALSO
 
-        No des saludos ni explicaciones, solo la respuesta con ese formato.
+        No des saludos ni explicaciones.
         """
 
-        # 3. Le preguntamos a Groq (usamos temperature=0.1 para que no sea creativo, sino analítico)
         chat_completion = cliente_groq.chat.completions.create(
             messages=[{"role": "user", "content": prompt}],
-            model="llama3-8b-8192",
+            model="llama-3.1-8b-instant",
             temperature=0.1
         )
-        respuesta_ai = chat_completion.choices[0].message.content.strip()
+        respuesta_original = chat_completion.choices[0].message.content.strip()
 
-        # 4. Procesamos la decisión de la IA
-        if respuesta_ai.startswith("EXISTE:|"):
-            nombre_db = respuesta_ai.split("|")[1].strip()
-            if nombre_db in diccionario_escuelas:
+        # Separamos la respuesta en dos partes usando el símbolo |
+        partes = respuesta_original.split("|", 1)
+        palabra_clave = partes[0].upper()  # Convertimos el "ok_existe" a "OK_EXISTE"
+
+        if palabra_clave == "OK_EXISTE" and len(partes) > 1:
+            nombre_db = partes[1].strip()
+            # Buscamos en el diccionario sin importar mayúsculas
+            if nombre_db.lower() in diccionario_escuelas:
                 print(f"🤖 IA vinculó '{nombre_usuario}' con '{nombre_db}'")
-                return diccionario_escuelas[nombre_db]  # Devolvemos el ID existente
+                return diccionario_escuelas[nombre_db.lower()]
 
-        elif respuesta_ai.startswith("NUEVA:|"):
-            nombre_nuevo = respuesta_ai.split("|")[1].strip()
-            # Como es nueva y real, la guardamos en el catálogo para el futuro
+        elif palabra_clave == "OK_NUEVA" and len(partes) > 1:
+            nombre_nuevo = partes[1].strip()
             cursor.execute("INSERT INTO bachilleratos (nombre) VALUES (%s)", (nombre_nuevo,))
             conexion.commit()
-            print(f"🤖 IA detectó y agregó escuela nueva: '{nombre_nuevo}'")
+            print(f"🤖 IA agregó escuela nueva: '{nombre_nuevo}'")
             return cursor.lastrowid
 
-        # Si la IA respondió "FALSA" o no cumplió el formato, lo rebotamos
-        print(f"🤖 IA rechazó la escuela: '{nombre_usuario}'")
+        print(f"🤖 IA rechazó la escuela: '{nombre_usuario}' -> Respuesta: {respuesta_original}")
         return None
 
     except Exception as e:
@@ -178,9 +180,49 @@ def validar_y_obtener_bachillerato(nombre_usuario, cliente_groq):
         if 'conexion' in locals(): conexion.close()
 
 
+def validar_nombre_ia(nombre_usuario, cliente_groq):
+    try:
+        prompt = f"""
+        Analiza si el siguiente texto es un nombre humano real (especialmente de México/Latinoamérica).
+        Texto del usuario: "{nombre_usuario}"
+
+        Reglas:
+        - Si es un nombre humano real (como "Axel Jimenez Bravo", "Juan Pérez", "Ana"), responde exactamente así:
+          OK|Nombre Corregido
+          (Ejemplo: OK|Axel Jiménez Bravo)
+        - Si son letras al azar ("asdf"), ficción ("Batman"), objetos o groserías, responde exactamente:
+          FALSO
+
+        No incluyas saludos ni texto extra.
+        """
+
+        chat_completion = cliente_groq.chat.completions.create(
+            messages=[{"role": "user", "content": prompt}],
+            model="llama-3.1-8b-instant",
+            temperature=0.1
+        )
+        respuesta_ai = chat_completion.choices[0].message.content.strip()
+
+        # Hacemos la validación más flexible por si la IA pone mayúsculas o minúsculas
+        if respuesta_ai.upper().startswith("OK|"):
+            # Separamos por la barra vertical | para sacar solo el nombre
+            nombre_limpio = respuesta_ai.split("|")[1].strip()
+            print(f"🤖 IA aceptó y limpió el nombre: '{nombre_limpio}'")
+            return nombre_limpio
+
+        # Le agregamos {respuesta_ai} al print para que veas EXACTAMENTE qué contestó la IA
+        print(f"🤖 IA rechazó el nombre: '{nombre_usuario}' -> Respuesta de la IA: {respuesta_ai}")
+        return None
+
+    except Exception as e:
+        print(f"❌ Error en IA Nombre: {e}")
+        # Si la API falla por internet, regresa el nombre con mayúsculas como respaldo
+        return nombre_usuario.title() if len(nombre_usuario) >= 3 else None
+
+
 def obtener_id_carrera(nombre_buscado):
     try:
-        conexion = mysql.connector.connect(host="localhost", user="root", password="blaky2507", database="itsabot")
+        conexion = mysql.connector.connect(host="localhost", user="root", password="blaky2507", database="itsabot", collation="utf8mb4_unicode_ci")
         cursor = conexion.cursor()
         # Buscamos la carrera que coincida con lo que escribió el usuario
         cursor.execute("SELECT id FROM carreras WHERE nombre LIKE %s", (f"%{nombre_buscado}%",))
@@ -201,15 +243,19 @@ async def procesar_chat(mensaje: MensajeUsuario):
 
         # --- FLUJO DE REGISTRO EXTENDIDO ---
         if estado_conversacion["paso_actual"] == "pidiendo_nombre":
-            # (Se mantiene igual que el anterior...)
-            if texto in ["hola", "inicio"]:
-                respuesta_texto = "¡Hola! Soy ItsaBot. 🌟 ¿Me podrías decir tu nombre completo?"
-            elif es_nombre_valido(texto):
-                estado_conversacion["datos_usuario"]["nombre"] = mensaje.texto.title()
-                estado_conversacion["paso_actual"] = "pidiendo_edad"
-                respuesta_texto = f"¡Mucho gusto, {mensaje.texto.title()}! 🤝 ¿Qué edad tienes?"
+
+            if texto in ["hola", "inicio", "arrancar", "menú", "🎯 menú principal", ""]:
+                respuesta_texto = "¡Hola! Qué gusto saludarte. 🌟 Soy ItsaBot, el asistente de admisiones. Estoy súper emocionado de ayudarte. Para darte la mejor atención, ¿me podrías regalar tu nombre completo por favor?"
             else:
-                respuesta_texto = "Por favor, escribe un nombre válido."
+                # ¡Llamamos a la nueva función de IA!
+                nombre_validado = validar_nombre_ia(texto, client)
+
+                if nombre_validado:
+                    estado_conversacion["datos_usuario"]["nombre"] = nombre_validado
+                    estado_conversacion["paso_actual"] = "pidiendo_edad"
+                    respuesta_texto = f"¡Mucho gusto, {nombre_validado}! 🤝 Oye, y cuéntame, ¿qué edad tienes?"
+                else:
+                    respuesta_texto = "Mmm, ese no parece un nombre real. 🤔 Por favor, escríbeme tu nombre y apellido verdaderos para poder registrarte correctamente."
 
         elif estado_conversacion["paso_actual"] == "pidiendo_edad":
             if es_edad_valida(texto):
@@ -256,7 +302,7 @@ async def procesar_chat(mensaje: MensajeUsuario):
                 # ¡AHORA SÍ GUARDAMOS CON TODOS LOS DATOS!
                 guardar_en_mysql(estado_conversacion["datos_usuario"])
                 estado_conversacion["paso_actual"] = "menu_libre"
-                respuesta_texto = "¡Registro completo! 🎉 Ya eres parte de nuestros aspirantes. ¿En qué más puedo ayudarte hoy?"
+                respuesta_texto = "¡Registro completo! 🎉 Ya eres parte de nuestros aspirantes. ¿En qué puedo ayudarte hoy?"
                 opciones_lista = ["1️⃣ Información de carreras", "2️⃣ Costos"]
             else:
                 respuesta_texto = "Lo siento, actualmente no contamos con esa carrera. 😅 ¿Te interesa alguna de estas?"
@@ -310,7 +356,7 @@ async def procesar_chat(mensaje: MensajeUsuario):
                              "content": "Eres ItsaBot, un asistente de admisiones del ITSA. Tienes una personalidad carismática, alegre y servicial. Usa emojis para expresarte. Si no sabes algo, dirige amablemente al WhatsApp 244 120 90 50."},
                             {"role": "user", "content": texto},
                         ],
-                        model="llama3-8b-8192",
+                        model="llama-3.1-8b-instant",
                     )
                     respuesta_texto = chat_completion.choices[0].message.content
                 except Exception as e:
@@ -349,7 +395,8 @@ def guardar_en_mysql(datos):
             host="localhost",
             user="root",
             password="blaky2507",
-            database="itsabot"
+            database="itsabot",
+            collation="utf8mb4_unicode_ci"
         )
         cursor = conexion.cursor()
 
