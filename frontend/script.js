@@ -80,21 +80,28 @@ async function enviarMensaje(texto) {
 // Nota: A veces las voces tardan un segundo en cargar, este pequeño bloque ayuda a prepararlas
 window.speechSynthesis.onvoiceschanged = function() {
     window.speechSynthesis.getVoices();
+}; // <-- ¡Fíjate que aquí cerramos esta función!
 
-    // --- NUEVO: EVENTO PARA LA TECLA ENTER ---
-const inputTexto = document.getElementById("tu-input"); // Revisa el ID en tu HTML
+// --- EL RECORDATORIO: LA FUNCIÓN QUE FALTABA ---
+// Esta función lee lo que escribiste, lo envía y limpia la caja
+function capturarYEnviar() {
+    const inputElement = document.getElementById("user-input");
+    const texto = inputElement.value.trim(); // Obtenemos el texto sin espacios extra
+
+    if (texto !== "") {
+        enviarMensaje(texto); // Mandamos el texto al bot
+        inputElement.value = ""; // Vaciamos la cajita de texto para el siguiente mensaje
+    }
+}
+
+// --- NUEVO: EVENTO PARA LA TECLA ENTER (AHORA SÍ, SUELTO) ---
+const inputTexto = document.getElementById("user-input");
 
 if (inputTexto) {
     inputTexto.addEventListener("keypress", function(event) {
         if (event.key === "Enter") {
-            event.preventDefault(); // Evita que el Enter haga saltos de línea o recargue la página
-            const texto = inputTexto.value.trim(); // Obtenemos el texto
-
-            if (texto !== "") {
-                enviarMensaje(texto); // Enviamos el mensaje a Python
-                inputTexto.value = ""; // Limpiamos la caja de texto para el siguiente mensaje
-            }
+            event.preventDefault(); // Evita que la página intente recargarse
+            capturarYEnviar(); // Llamamos a la función que acabamos de crear arriba
         }
     });
 }
-};

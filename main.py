@@ -249,29 +249,33 @@ async def procesar_chat(mensaje: MensajeUsuario):
             opciones_lista = []
             paso = estado_conversacion["paso_actual"]
 
+            # --- DEFINICIÓN DEL MENÚ PRINCIPAL UNIFICADO ---
+            # Esto lo usaremos en varios lugares para que siempre sea igual
+            MENU_PRINCIPAL_TEXTO = "¡Excelente! Ya estamos en el menú principal. ✨||¿En qué puedo ayudarte el día de hoy? Tengo toda esta información para ti:"
+            MENU_PRINCIPAL_OPCIONES = [
+                "1️⃣ Información de carreras",
+                "2️⃣ Proceso de inscripción",
+                "3️⃣ Fechas de admisión",
+                "4️⃣ Costos",
+                "🚪 Cerrar Sesión"
+            ]
             # --- FLUJO 0: SALUDO INICIAL ---
             if texto in ["hola", "inicio", "comenzar"] or paso == "saludo_inicial":
                 estado_conversacion["paso_actual"] = "seleccion_tipo_usuario"
                 # Solo asignamos variables, SIN usar return
-                respuesta_texto = "¡Hola! Soy LinceBot, tu asistente de admisiones del ITSA. 🐾||¿Es tu primera vez por aquí o ya iniciaste tu proceso de registro?"
+                respuesta_texto = "¡Hola! Qué gusto saludarte. 🌟 Soy ItsaBot, el asistente de admisiones. Estoy súper emocionado de ayudarte || ¿Es tu primera vez por aquí o ya iniciaste tu proceso?"
                 opciones_lista = ["Nuevo Registro", "Ya soy aspirante"]
 
             # --- FLUJO 1: SELECCIÓN ---
             elif paso == "seleccion_tipo_usuario":
-                # CORRECCIÓN: Comparamos en minúsculas
-                if texto == "nuevo registro":
+                if "nuevo" in texto:
                     estado_conversacion["paso_actual"] = "pidiendo_nombre"
-                    respuesta_texto = "¡Excelente elección! Vamos a comenzar.||Para empezar, dime tu **nombre completo**."
-                    opciones_lista = []
-
-                # CORRECCIÓN: Comparamos en minúsculas
-                elif texto == "ya soy aspirante":
+                    respuesta_texto = "¡Qué emoción! 🎉 Para empezar, ¿me podrías decir tu **nombre completo**?"
+                elif "aspirante" in texto:
                     estado_conversacion["paso_actual"] = "login_esperando_correo"
-                    respuesta_texto = "¡Qué gusto verte de nuevo! 🐾||Por favor, ingresa el **correo electrónico** con el que te registraste."
-                    opciones_lista = []
+                    respuesta_texto = "¡Qué gusto verte de nuevo! 🐾||Por favor, ingresa el **correo electrónico** de tu registro."
                 else:
-                    # Siempre es bueno tener un 'else' por si el usuario escribe otra cosa
-                    respuesta_texto = "Por favor, utiliza uno de los botones para continuar.||¿Es tu primera vez por aquí o ya iniciaste tu proceso de registro?"
+                    respuesta_texto = "Por favor, elige una opción:||¿Nuevo Registro o Ya soy aspirante?"
                     opciones_lista = ["Nuevo Registro", "Ya soy aspirante"]
 
             # --- FLUJO 2: LOGIN (YA SOY ASPIRANTE) ---
@@ -289,13 +293,11 @@ async def procesar_chat(mensaje: MensajeUsuario):
                         estado_conversacion["datos_usuario"]["correo"] = texto
                         estado_conversacion["datos_usuario"]["nombre"] = usuario["nombre_completo"]
                         estado_conversacion["paso_actual"] = "login_esperando_pin"
-                        return {
-                            "respuesta": f"¡Hola {usuario['nombre_completo']}! He localizado tu registro.||Por favor, ingresa tu **PIN de 4 dígitos** para acceder.",
-                            "opciones": ["olvide mi pin"]
-                        }
+                        respuesta_texto = "¡Te encontré!🥳 || ¡Hola {usuario['nombre_completo']}! || Por favor, ingresa tu **PIN de 4 dígitos**."
+                        opciones_lista = ["olvide mi pin"]
                     else:
-                        return {
-                            "respuesta": "No encontré ningún registro con ese correo. Inténtalo de nuevo o elige 'Nuevo Registro'."}
+
+                        respuesta_texto = "No encontré ningún registro con ese correo. Inténtalo de nuevo o elige 'Nuevo Registro'."
 
             elif paso == "login_esperando_pin":
                 if texto == "olvide mi pin":
@@ -306,10 +308,9 @@ async def procesar_chat(mensaje: MensajeUsuario):
 
                     if enviar_correo_recuperacion(correo, codigo):
                         estado_conversacion["paso_actual"] = "esperando_codigo_correo"
-                        return {
-                            "respuesta": f"Te he enviado un código de seguridad a **{correo}**.||Por favor, escríbelo aquí para crear un nuevo PIN."}
+                        respuesta_texto="Te he enviado un código de seguridad a **{correo}**.||Por favor, escríbelo aquí para crear un nuevo PIN."
                     else:
-                        return {"respuesta": "Hubo un error al enviar el correo. Intenta más tarde."}
+                        respuesta_texto="Hubo un error al enviar el correo. Intenta más tarde."
 
                 # Lógica de verificación de PIN normal
                 conexion = mysql.connector.connect(host="localhost", user="root", password="blaky2507",database="itsabot", collation="utf8mb4_unicode_ci")
@@ -321,21 +322,20 @@ async def procesar_chat(mensaje: MensajeUsuario):
                 conexion.close()
 
                 if texto == res["pin_seguridad"]:
-                    estado_conversacion["paso_actual"] = "usuario_logueado"
-                    return {
-                        "respuesta": "¡Acceso concedido! ✅||¿En qué puedo ayudarte hoy con tu proceso de admisión?",
-                        "opciones": ["Consultar Estatus", "Requisitos", "Cerrar Sesión"]
-                    }
+                    estado_conversacion["paso_actual"] = "menu_libre"
+                    respuesta_texto = f"¡Acceso concedido! ✅ Bienvenido de vuelta. {MENU_PRINCIPAL_TEXTO}"
+                    opciones_lista = MENU_PRINCIPAL_OPCIONES
+
                 else:
-                    return {"respuesta": "PIN incorrecto. Inténtalo de nuevo o selecciona 'Olvidé mi PIN'."}
+                    respuesta_texto = "PIN incorrecto. Inténtalo de nuevo o selecciona 'Olvidé mi PIN'."
 
             # --- FLUJO 3: RECUPERACIÓN DE PIN ---
             elif paso == "esperando_codigo_correo":
                 if texto == estado_conversacion["codigo_verificacion"]:
                     estado_conversacion["paso_actual"] = "creando_nuevo_pin"
-                    return {"respuesta": "¡Código correcto! Ahora, por favor ingresa tu **nuevo PIN de 4 dígitos**."}
+                    respuesta_texto="¡Código correcto! Ahora, por favor ingresa tu **nuevo PIN de 4 dígitos**."
                 else:
-                    return {"respuesta": "Código incorrecto. Revisa tu correo nuevamente."}
+                    respuesta_texto="Código incorrecto. Revisa tu correo nuevamente."
 
             elif paso == "creando_nuevo_pin":
                 if len(texto) == 4 and texto.isdigit():
@@ -347,13 +347,12 @@ async def procesar_chat(mensaje: MensajeUsuario):
                     conexion.commit()
                     conexion.close()
 
-                    estado_conversacion["paso_actual"] = "usuario_logueado"
-                    return {
-                        "respuesta": "¡PIN actualizado con éxito! Ya puedes usar el sistema.||¿Qué deseas consultar?"}
+                    estado_conversacion["paso_actual"] = "menu_libre"
+                    respuesta_texto = f"¡PIN actualizado con éxito! || ¡Acceso concedido! ✅ Bienvenido de vuelta. {MENU_PRINCIPAL_TEXTO}"
+                    opciones_lista = MENU_PRINCIPAL_OPCIONES
                 else:
-                    return {"respuesta": "El PIN debe ser de 4 números exactamente."}
+                    respuesta_texto="El PIN debe ser de 4 números exactamente."
 
-            # --- AQUÍ SIGUE TU FLUJO NORMAL DE REGISTRO (pidiendo_nombre, pidiendo_telefono, etc.) ---
             elif paso == "pidiendo_nombre":
 
                 if texto in ["hola", "inicio", "arrancar", "menú", "🎯 menú principal", ""]:
@@ -400,7 +399,7 @@ async def procesar_chat(mensaje: MensajeUsuario):
                 if id_bach:  # Si la IA nos devolvió un ID (ya sea existente o nuevo)
                     estado_conversacion["datos_usuario"]["id_bachillerato"] = id_bach
                     estado_conversacion["paso_actual"] = "pidiendo_carrera"
-                    respuesta_texto = "¡Excelente escuela! 🏫 Por último, ¿qué carrera te interesa estudiar?"
+                    respuesta_texto = "¡Excelente escuela! 🏫 Ahora dime, ¿qué carrera te interesa estudiar?"
                     opciones_lista = ["Sistemas", "Mecatrónica", "Industrial", "Bioquímica", "Electromecánica",
                                       "Gastronomía"]
                 else:
@@ -415,12 +414,11 @@ async def procesar_chat(mensaje: MensajeUsuario):
 
                     # CAMBIO: En lugar de finalizar, pedimos el PIN
                     estado_conversacion["paso_actual"] = "creando_pin_registro"
-                    return {
-                        "respuesta": "¡Excelente elección! 🎓||Ya casi terminamos. Para que puedas consultar tu estatus después, **crea un PIN de 4 números** (ejemplo: 1234).",
-                        "opciones": []
-                    }
+                    respuesta_texto= "¡Excelente elección! 🎓||Ya casi terminamos. Para que puedas consultar tu estatus después, **crea un PIN de 4 números** (ejemplo: 1234)."
+                    opciones_lista= []
+
                 else:
-                    return {"respuesta": "Por favor, elige una de las carreras de los botones."}
+                    respuesta_texto= "Por favor, elige una de las carreras de los botones."
 
             elif paso == "creando_pin_registro":
                 # Validamos que sean 4 dígitos exactos
@@ -430,13 +428,10 @@ async def procesar_chat(mensaje: MensajeUsuario):
                     # GUARDAR EN BASE DE DATOS
                     guardar_en_mysql(estado_conversacion["datos_usuario"])
 
-                    # Limpiamos el estado para que pueda volver a empezar si saluda de nuevo
-                    estado_conversacion["paso_actual"] = "saludo_inicial"
 
-                    return {
-                        "respuesta": f"¡Perfecto! Tu registro se ha completado con éxito. ✅||Tu PIN ha sido guardado. Ahora puedes usar el botón **'Ya soy aspirante'** para consultar tus avances.||¡Mucho éxito en tu proceso de admisión! 🐾",
-                        "opciones": ["Inicio"]
-                    }
+                    estado_conversacion["paso_actual"] = "menu_libre"
+                    respuesta_texto = f"¡Registro completo! 🎉 Ya eres parte de nuestros aspirantes. Bienvenido. {MENU_PRINCIPAL_TEXTO}"
+                    opciones_lista = MENU_PRINCIPAL_OPCIONES
                 else:
                     return {"respuesta": "El PIN debe ser de **4 números**. Inténtalo de nuevo."}
 
@@ -444,38 +439,31 @@ async def procesar_chat(mensaje: MensajeUsuario):
         # 2. ZONA LIBRE (El usuario ya nos dio sus datos)
         # ==========================================
             elif paso == "menu_libre":
+                if "cerrar sesión" in texto or "cerrar sesion" in texto:
+                    estado_conversacion = {"paso_actual": "saludo_inicial", "datos_usuario": {}}
+                    respuesta_texto = "Has cerrado sesión correctamente. 🔒||¡Vuelve pronto! Escribe 'Hola' si necesitas algo más."
+                    opciones_lista = ["Inicio"]
 
-                # Volver al menú
-                if texto in ["🎯 menú principal", "inicio", "menú"]:
-                    respuesta_texto = "¿En qué más puedo ayudarte hoy?"
-                    opciones_lista = ["1️⃣ Información de carreras", "2️⃣ Fechas de admisión", "3️⃣ Costos"]
-
-                # Menú de carreras
                 elif "1️⃣" in texto or "carreras" in texto:
-                    respuesta_texto = "Contamos con:||• Ingenierías: Sistemas, Bioquímica, Mecatrónica, Industrial, Electromecánica.||• Licenciatura: Gastronomía.||¿De cuál deseas detalles?"
-                    opciones_lista = ["Sistemas", "Bioquímica", "Mecatrónica", "Industrial", "Electromecánica", "Gastronomía",
-                                      "🎯 Menú principal"]
+                    respuesta_texto = "Nuestra oferta educativa es excelente. ¿De qué carrera te gustaría saber más?"
+                    opciones_lista = ["Sistemas", "Mecatrónica", "Industrial", "Bioquímica", "Electromecánica",
+                                      "Gastronomía", "🎯 Menú Principal"]
 
-                # DETALLE DE CARRERAS (DINÁMICO - Tu lógica intacta)
-                elif any(c in texto for c in
-                         ["sistemas", "bioquímica", "mecatrónica", "industrial", "electromecánica", "gastronomía"]):
-                    c_clave = ""
-                    if "sistemas" in texto:
-                        c_clave = "sistemas"
-                    elif "bioquímica" in texto or "bioquimica" in texto:
-                        c_clave = "bioquimica"
-                    elif "mecatrónica" in texto or "mecatronica" in texto:
-                        c_clave = "mecatronica"
-                    elif "industrial" in texto:
-                        c_clave = "industrial"
-                    elif "electromecánica" in texto or "electromecanica" in texto:
-                        c_clave = "electromecanica"
-                    elif "gastronomía" in texto or "gastronomia" in texto:
-                        c_clave = "gastronomia"
+                elif "2️⃣" in texto or "inscripción" in texto or "inscripcion" in texto:
+                    respuesta_texto = "El proceso es muy sencillo:||1. Realizas tu registro aquí.||2. Pagas tu ficha.||3. Presentas examen de admisión.||4. Entrega de documentos.||¿Te gustaría saber los requisitos de documentos?"
+                    opciones_lista = ["Requisitos", "🎯 Menú Principal"]
 
-                    info = info_carreras[c_clave]
-                    respuesta_texto = f"La {info['nombre']} tiene una duración de {info['duracion']} con especialidad en {info['especialidad']}.||🎯 Perfil: {info['perfil']}||💼 Campo Laboral: {info['campo_laboral']}||🔗 <a href='{info['plan_estudios']}' target='_blank'>Ver plan de estudios</a>"
-                    opciones_lista = ["🎯 Menú principal"]
+                elif "3️⃣" in texto or "fechas" in texto:
+                    respuesta_texto = "📅 El próximo examen de admisión es el **24 de Junio**.||La entrega de fichas cierra el 15 de Junio. ¡No te quedes fuera!"
+                    opciones_lista = ["🎯 Menú Principal"]
+
+                elif "4️⃣" in texto or "costos" in texto:
+                    respuesta_texto = "💳 La ficha de admisión tiene un costo de **$850 MXN**.||La inscripción semestral es de **$2,400 MXN**. ¿Deseas información de becas?"
+                    opciones_lista = ["Becas", "🎯 Menú Principal"]
+
+                elif "🎯 menú principal" in texto or "menu" in texto:
+                    respuesta_texto = MENU_PRINCIPAL_TEXTO
+                    opciones_lista = MENU_PRINCIPAL_OPCIONES
 
                 # PREGUNTA LIBRE (USANDO LA API DE GROQ CON LABIA)
                     # PREGUNTA LIBRE (USANDO LA API DE GROQ CON LABIA)
@@ -484,18 +472,19 @@ async def procesar_chat(mensaje: MensajeUsuario):
                         chat_completion = client.chat.completions.create(
                             messages=[
                                 {"role": "system",
-                                 "content": "Eres ItsaBot, un asistente de admisiones del ITSA. Tienes una personalidad carismática, alegre y servicial. Usa emojis para expresarte. Si no sabes algo, dirige amablemente al WhatsApp 244 120 90 50."},
+                                 "content": "Eres ItsaBot, un asistente de admisiones del ITSA. Tienes una personalidad carismática, alegre y servicial. Usa emojis para expresarte. Si no sabes algo, dirige amablemente al WhatsApp 244 120 90 50., ademas se breve y amable"},
                                 {"role": "user", "content": texto},
                             ],
                             model="llama-3.1-8b-instant",
                         )
                         respuesta_texto = chat_completion.choices[0].message.content
+                        opciones_lista = ["🎯 Menú Principal"]
                     except Exception as e:
                         # 👉 ESTA ES LA LÍNEA NUEVA: Imprimirá en tu terminal por qué falló Groq
                         print(f"❌ ERROR DE GROQ: {e}")
 
                         respuesta_texto = "Ay, caray. 😅 Tuve un problema técnico momentáneo. Por favor contacta a admisiones al 244 120 90 50."
-                    opciones_lista = ["🎯 Menú principal"]
+                        opciones_lista = MENU_PRINCIPAL_OPCIONES
 
 
             # ==========================================
@@ -508,13 +497,13 @@ async def procesar_chat(mensaje: MensajeUsuario):
 
                 # Enviamos la respuesta cambiando '||' por <br><br> para que se vea bonito en pantalla
                 return {
-                    "respuesta": respuesta_texto.replace("||", "<br><br>"),
+                    "respuesta": respuesta_texto,
                     "opciones": opciones_lista,
                     "audio": audio_b64
                 }
             except:
                 return {
-                    "respuesta": respuesta_texto.replace("||", "<br><br>"),
+                    "respuesta": respuesta_texto,
                     "opciones": opciones_lista,
                     "audio": None
                 }
