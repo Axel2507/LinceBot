@@ -804,7 +804,7 @@ class LoginRoot(tk.Tk):
         # --- AQUÍ CARGAMOS LA IMAGEN DE FONDO ---
         try:
             # Asegúrate de tener una imagen llamada "fondo_login.jpg" en la misma carpeta
-            self.img_obj = Image.open("fondo_login.jpeg")
+            self.img_obj = Image.open("fondo_login.png")
             self.img_obj = self.img_obj.resize((860, 520), Image.Resampling.LANCZOS)
             self.img_tk = ImageTk.PhotoImage(self.img_obj)
 
@@ -892,7 +892,7 @@ class LoginRoot(tk.Tk):
 
 class RegisterRoot(tk.Toplevel):
     """
-    Registro de usuario (Limpio: Sin rol y sin num_trabajador)
+    Registro de usuario (Tarjeta centrada con fondo, validaciones y ojito)
     """
 
     def __init__(self, login_root: LoginRoot, db: Database):
@@ -902,98 +902,160 @@ class RegisterRoot(tk.Toplevel):
         self.title("Sistema ITSA — Crear Cuenta")
         self.geometry("860x540")
         self.resizable(False, False)
-        self.configure(bg=C_BLANCO)
 
         self.update_idletasks()
         x = (self.winfo_screenwidth() - 860) // 2
         y = (self.winfo_screenheight() - 540) // 2
         self.geometry(f"860x540+{x}+{y}")
         self.protocol("WM_DELETE_WINDOW", self._volver)
+
+        # --- CARGAMOS LA IMAGEN DE FONDO ---
+        try:
+            self.img_obj = Image.open("fondo_formulario.png")  # Reutilizamos la misma imagen
+            self.img_obj = self.img_obj.resize((860, 540), Image.Resampling.LANCZOS)
+            self.img_tk = ImageTk.PhotoImage(self.img_obj)
+
+            self.lbl_fondo = tk.Label(self, image=self.img_tk)
+            self.lbl_fondo.place(x=0, y=0, relwidth=1, relheight=1)
+        except Exception as e:
+            print(f"⚠️ No se pudo cargar la imagen de fondo: {e}")
+
         self._ui()
 
     def _ui(self):
-        left = tk.Frame(self, bg=C_BLANCO)
-        left.place(x=0, y=0, width=540, height=540)
+        # Tarjeta blanca central
+        f = tk.Frame(self, bg=C_BLANCO)
+        f.place(relx=.5, rely=.5, anchor="center", width=380, height=440)
 
-        tk.Label(left, text="Crear Cuenta", bg=C_BLANCO, fg=C_VINO,
-                 font=("Georgia", 20, "bold")).pack(pady=(45, 4))
-        tk.Label(left, text="Tecnológico de Atlixco — Sistema de Admisiones",
-                 bg=C_BLANCO, fg=C_SUBTEXTO, font=F_SMALL).pack(pady=(0, 25))
+        # Franja decorativa roja
+        tk.Frame(f, bg=C_VINO, height=4).pack(fill="x")
+
+        tk.Label(f, text="Crear Cuenta", bg=C_BLANCO, fg=C_VINO,
+                 font=("Georgia", 18, "bold")).pack(pady=(20, 5))
+        tk.Label(f, text="Sistema de Admisiones ITSA",
+                 bg=C_BLANCO, fg=C_SUBTEXTO, font=F_SMALL).pack(pady=(0, 20))
 
         self._ef = {}
-        # LISTA DE CAMPOS LIMPIA
-        for key, ph, sec in [
+        self.show_pwd = False  # Estado del ojito de contraseña
+
+        # CAMPOS CON LOGICA MEJORADA
+        campos = [
             ("nombre", "Nombre completo", False),
             ("correo", "Correo electrónico", False),
             ("password", "Contraseña", True),
             ("confirm", "Confirmar contraseña", True),
-        ]:
-            e = tk.Entry(left, font=F_BODY, bg="#F0F0F0",
-                         fg=C_SUBTEXTO, relief="flat", bd=0,
-                         insertbackground=C_VINO,
-                         show=("*" if sec else ""))
+        ]
+
+        for key, ph, sec in campos:
+            # Contenedor para el Entry y el Icono
+            frame_input = tk.Frame(f, bg="#F0F0F0")
+            frame_input.pack(fill="x", padx=30, pady=6)
+
+            e = tk.Entry(frame_input, font=F_BODY, bg="#F0F0F0",
+                         fg=C_SUBTEXTO, relief="flat", bd=0, insertbackground=C_VINO)
             e.insert(0, ph)
+
             if sec:
-                e.bind("<FocusIn>", lambda ev, en=e, p=ph: (
-                        en.get() == p and (en.delete(0, "end"),
-                                           en.config(show="*", fg=C_TEXTO))))
-                e.bind("<FocusOut>", lambda ev, en=e, p=ph: (
-                        not en.get() and (en.config(show="", fg=C_SUBTEXTO),
-                                          en.insert(0, p))))
+                e.bind("<FocusIn>", lambda ev, en=e, p=ph: self._on_focus_in_sec(en, p))
+                e.bind("<FocusOut>", lambda ev, en=e, p=ph: self._on_focus_out_sec(en, p))
+
+                # Agregar el Ojito solo al primer campo de contraseña
+                if key == "password":
+                    self.lbl_ojo = tk.Label(frame_input, text="👁️", bg="#F0F0F0", fg=C_SUBTEXTO, cursor="hand2")
+                    self.lbl_ojo.pack(side="right", padx=10)
+                    self.lbl_ojo.bind("<Button-1>", self._toggle_pwd)
             else:
-                e.bind("<FocusIn>", lambda ev, en=e, p=ph: (
-                        en.get() == p and (en.delete(0, "end"),
-                                           en.config(fg=C_TEXTO))))
-                e.bind("<FocusOut>", lambda ev, en=e, p=ph: (
-                        not en.get() and (en.config(fg=C_SUBTEXTO),
-                                          en.insert(0, p))))
-            e.pack(fill="x", padx=48, ipady=9, pady=5)
+                e.bind("<FocusIn>", lambda ev, en=e, p=ph: self._on_focus_in(en, p))
+                e.bind("<FocusOut>", lambda ev, en=e, p=ph: self._on_focus_out(en, p))
+
+            e.pack(side="left", fill="both", expand=True, padx=10, ipady=8)
             self._ef[key] = e
 
-        btn_pill(left, "Registrarse", self._reg, py=10).pack(
-            fill="x", padx=48, pady=(25, 0))
+        btn_pill(f, "Registrarse", self._reg, py=10).pack(fill="x", padx=30, pady=(20, 10))
 
-        lnk = tk.Label(left, text="¿Ya tienes cuenta? Inicia sesión",
+        lnk = tk.Label(f, text="¿Ya tienes cuenta? Inicia sesión",
                        bg=C_BLANCO, fg=C_SUBTEXTO, font=F_SMALL, cursor="hand2")
-        lnk.pack(pady=10)
+        lnk.pack(pady=5)
         lnk.bind("<Button-1>", lambda _: self._volver())
+        lnk.bind("<Enter>", lambda _: lnk.config(fg=C_VINO))
+        lnk.bind("<Leave>", lambda _: lnk.config(fg=C_SUBTEXTO))
 
-        # Panel derecho
-        right = tk.Frame(self, bg=C_VINO)
-        right.place(x=540, y=0, width=320, height=540)
+    # --- FUNCIONES PARA QUITAR/PONER EL TEXTO DE RELLENO ---
+    def _on_focus_in(self, e, ph):
+        if e.get() == ph:
+            e.delete(0, "end")
+            e.config(fg=C_TEXTO)
 
-        tk.Label(right, text="TECNOLÓGICO\nATLIXCO",
-                 bg=C_VINO, fg=C_BLANCO,
-                 font=("Helvetica", 24, "bold"), justify="center").place(
-            relx=.5, rely=.40, anchor="center")
+    def _on_focus_out(self, e, ph):
+        if not e.get():
+            e.config(fg=C_SUBTEXTO)
+            e.insert(0, ph)
 
-        tk.Label(right, text="Sistema de Admisiones",
-                 bg=C_VINO, fg="#FF8A80",
-                 font=("Helvetica", 12), justify="center").place(
-            relx=.5, rely=.55, anchor="center")
+    def _on_focus_in_sec(self, e, ph):
+        if e.get() == ph:
+            e.delete(0, "end")
+            e.config(fg=C_TEXTO)
+            if not self.show_pwd:
+                e.config(show="*")  # Ocultar texto solo si el ojito no está activo
+
+    def _on_focus_out_sec(self, e, ph):
+        if not e.get():
+            e.config(show="")  # Mostrar el texto normal para que se lea la palabra "Contraseña"
+            e.config(fg=C_SUBTEXTO)
+            e.insert(0, ph)
+
+    def _toggle_pwd(self, event):
+        self.show_pwd = not self.show_pwd
+        self.lbl_ojo.config(text="🙈" if self.show_pwd else "👁️")
+
+        pwd = self._ef["password"]
+        conf = self._ef["confirm"]
+
+        if pwd.get() != "Contraseña":
+            pwd.config(show="" if self.show_pwd else "*")
+        if conf.get() != "Confirmar contraseña":
+            conf.config(show="" if self.show_pwd else "*")
 
     def _volver(self):
         self.destroy()
         self.login_root.deiconify()
 
     def _reg(self):
+        import re  # Importado aquí para las validaciones
+
         ph = {"Nombre completo", "Correo electrónico", "Contraseña", "Confirmar contraseña"}
         vals = {k: e.get().strip() for k, e in self._ef.items()}
 
+        # 1. Validar campos vacíos
         if any(v in ph or not v for v in vals.values()):
-            messagebox.showwarning("Campos incompletos",
-                                   "Completa todos los campos.", parent=self)
+            messagebox.showwarning("Campos incompletos", "Completa todos los campos.", parent=self)
             return
 
+        # 2. Validar Nombre (Solo letras y espacios, funciona con acentos)
+        if not all(c.isalpha() or c.isspace() for c in vals["nombre"]):
+            messagebox.showerror("Error de formato", "El nombre solo debe contener letras.", parent=self)
+            return
+
+        # 3. Validar Correo (Usa expresión regular para el formato @ y .)
+        if not re.match(r"^[\w\.-]+@[\w\.-]+\.\w+$", vals["correo"]):
+            messagebox.showerror("Error de formato", "Ingresa un correo electrónico válido.", parent=self)
+            return
+
+        # 4. Validar Contraseña Segura (Mínimo 8 letras, 1 mayúscula, 1 número)
+        pwd = vals["password"]
+        if len(pwd) < 8 or not re.search(r"[A-Z]", pwd) or not re.search(r"\d", pwd):
+            mensaje = "La contraseña es muy débil. Debe contener:\n\n• Al menos 8 caracteres\n• Una letra mayúscula\n• Un número"
+            messagebox.showerror("Contraseña débil", mensaje, parent=self)
+            return
+
+        # 5. Validar que coincidan
         if vals["password"] != vals["confirm"]:
-            messagebox.showerror("Error",
-                                 "Las contraseñas no coinciden.", parent=self)
+            messagebox.showerror("Error", "Las contraseñas no coinciden.", parent=self)
             return
 
-        # Llamada a la base de datos limpia (Solo 3 parámetros)
+        # Si todo es correcto, registramos en la BD
         if self.db.register(vals["nombre"], vals["correo"], vals["password"]):
-            messagebox.showinfo("Cuenta creada",
-                                "Registro exitoso. Ahora inicia sesión.", parent=self)
+            messagebox.showinfo("Cuenta creada", "Registro exitoso. Ahora puedes iniciar sesión.", parent=self)
             self._volver()
 
 

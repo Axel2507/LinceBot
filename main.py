@@ -11,8 +11,12 @@ from datetime import datetime
 from groq import Groq
 import os
 from dotenv import load_dotenv
-
-
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+import random
+import traceback
+from fastapi.staticfiles import StaticFiles
 
 
 def es_edad_valida(edad):
@@ -39,11 +43,12 @@ app.add_middleware(
 load_dotenv()
 client = Groq(api_key = os.getenv("GROQ_API_KEY"))
 
-estado_conversacion = {
-    "paso_actual": "pidiendo_nombre", # Empezamos el embudo aquí
-    "datos_usuario": {}
-}
 
+estado_conversacion = {
+    "paso_actual": "saludo_inicial",
+    "datos_usuario": {},
+    "codigo_verificacion": None # Para guardar el código temporal del correo
+}
 
 class MensajeUsuario(BaseModel):
     texto: str
@@ -234,159 +239,286 @@ def obtener_id_carrera(nombre_buscado):
         print(f"Error Carrera: {e}")
         return None
 
+
+
 @app.post("/chat/")
 async def procesar_chat(mensaje: MensajeUsuario):
-        global estado_conversacion
-        texto = mensaje.texto.lower().strip()
-        respuesta_texto = ""
-        opciones_lista = []
+            global estado_conversacion
+            texto = mensaje.texto.lower().strip()
+            respuesta_texto = ""
+            opciones_lista = []
+            paso = estado_conversacion["paso_actual"]
 
-        # --- FLUJO DE REGISTRO EXTENDIDO ---
-        if estado_conversacion["paso_actual"] == "pidiendo_nombre":
+            # --- FLUJO 0: SALUDO INICIAL ---
+            if texto in ["hola", "inicio", "comenzar"] or paso == "saludo_inicial":
+                estado_conversacion["paso_actual"] = "seleccion_tipo_usuario"
+                # Solo asignamos variables, SIN usar return
+                respuesta_texto = "¡Hola! Soy LinceBot, tu asistente de admisiones del ITSA. 🐾||¿Es tu primera vez por aquí o ya iniciaste tu proceso de registro?"
+                opciones_lista = ["Nuevo Registro", "Ya soy aspirante"]
 
-            if texto in ["hola", "inicio", "arrancar", "menú", "🎯 menú principal", ""]:
-                respuesta_texto = "¡Hola! Qué gusto saludarte. 🌟 Soy ItsaBot, el asistente de admisiones. Estoy súper emocionado de ayudarte. Para darte la mejor atención, ¿me podrías regalar tu nombre completo por favor?"
-            else:
-                # ¡Llamamos a la nueva función de IA!
-                nombre_validado = validar_nombre_ia(texto, client)
+            # --- FLUJO 1: SELECCIÓN ---
+            elif paso == "seleccion_tipo_usuario":
+                # CORRECCIÓN: Comparamos en minúsculas
+                if texto == "nuevo registro":
+                    estado_conversacion["paso_actual"] = "pidiendo_nombre"
+                    respuesta_texto = "¡Excelente elección! Vamos a comenzar.||Para empezar, dime tu **nombre completo**."
+                    opciones_lista = []
 
-                if nombre_validado:
-                    estado_conversacion["datos_usuario"]["nombre"] = nombre_validado
-                    estado_conversacion["paso_actual"] = "pidiendo_edad"
-                    respuesta_texto = f"¡Mucho gusto, {nombre_validado}! 🤝 Oye, y cuéntame, ¿qué edad tienes?"
+                # CORRECCIÓN: Comparamos en minúsculas
+                elif texto == "ya soy aspirante":
+                    estado_conversacion["paso_actual"] = "login_esperando_correo"
+                    respuesta_texto = "¡Qué gusto verte de nuevo! 🐾||Por favor, ingresa el **correo electrónico** con el que te registraste."
+                    opciones_lista = []
                 else:
-                    respuesta_texto = "Mmm, ese no parece un nombre real. 🤔 Por favor, escríbeme tu nombre y apellido verdaderos para poder registrarte correctamente."
+                    # Siempre es bueno tener un 'else' por si el usuario escribe otra cosa
+                    respuesta_texto = "Por favor, utiliza uno de los botones para continuar.||¿Es tu primera vez por aquí o ya iniciaste tu proceso de registro?"
+                    opciones_lista = ["Nuevo Registro", "Ya soy aspirante"]
 
-        elif estado_conversacion["paso_actual"] == "pidiendo_edad":
-            if es_edad_valida(texto):
-                estado_conversacion["datos_usuario"]["edad"] = int(texto)
-                estado_conversacion["paso_actual"] = "pidiendo_telefono"
-                respuesta_texto = "¡Súper! 🚀 ¿Cuál es tu número de teléfono a 10 dígitos?"
-            else:
-                respuesta_texto = "Escribe solo tu edad en números (ejemplo: 17)."
+            # --- FLUJO 2: LOGIN (YA SOY ASPIRANTE) ---
+            elif paso == "login_esperando_correo":
+                # Aquí verificamos si el correo existe en la base de datos
+                conexion = mysql.connector.connect(host="localhost", user="root", password="blaky2507",database="itsabot", collation="utf8mb4_unicode_ci")
+                if conexion:
+                    cursor = conexion.cursor(dictionary=True)
+                    cursor.execute("SELECT nombre_completo, pin_seguridad FROM prospectos WHERE correo = %s",
+                                   (texto,))
+                    usuario = cursor.fetchone()
+                    conexion.close()
 
-        elif estado_conversacion["paso_actual"] == "pidiendo_telefono":
-            if es_telefono_valido(texto):
-                estado_conversacion["datos_usuario"]["telefono"] = texto
-                estado_conversacion["paso_actual"] = "pidiendo_correo"
-                respuesta_texto = "¡Anotado! 📱 Ahora, ¿cuál es tu correo electrónico?"
-            else:
-                respuesta_texto = "Escribe un número a 10 dígitos (ejemplo: 2441234567)."
+                    if usuario:
+                        estado_conversacion["datos_usuario"]["correo"] = texto
+                        estado_conversacion["datos_usuario"]["nombre"] = usuario["nombre_completo"]
+                        estado_conversacion["paso_actual"] = "login_esperando_pin"
+                        return {
+                            "respuesta": f"¡Hola {usuario['nombre_completo']}! He localizado tu registro.||Por favor, ingresa tu **PIN de 4 dígitos** para acceder.",
+                            "opciones": ["olvide mi pin"]
+                        }
+                    else:
+                        return {
+                            "respuesta": "No encontré ningún registro con ese correo. Inténtalo de nuevo o elige 'Nuevo Registro'."}
 
-        elif estado_conversacion["paso_actual"] == "pidiendo_correo":
-            if es_correo_valido(texto):
-                estado_conversacion["datos_usuario"]["correo"] = texto
-                estado_conversacion["paso_actual"] = "pidiendo_bachillerato"
-                respuesta_texto = "¡Gracias! 📧 ¿De qué bachillerato o preparatoria vienes?"
-            else:
-                respuesta_texto = "Escribe un correo válido (ejemplo: usuario@gmail.com)."
+            elif paso == "login_esperando_pin":
+                if texto == "olvide mi pin":
+                    # Generar código de 4 dígitos y enviar correo
+                    codigo = str(random.randint(1000, 9999))
+                    estado_conversacion["codigo_verificacion"] = codigo
+                    correo = estado_conversacion["datos_usuario"]["correo"]
 
-        elif estado_conversacion["paso_actual"] == "pidiendo_bachillerato":
-            # Llamamos a nuestra nueva súper-función con IA, pasándole el cliente de Groq
-            id_bach = validar_y_obtener_bachillerato(texto, client)
+                    if enviar_correo_recuperacion(correo, codigo):
+                        estado_conversacion["paso_actual"] = "esperando_codigo_correo"
+                        return {
+                            "respuesta": f"Te he enviado un código de seguridad a **{correo}**.||Por favor, escríbelo aquí para crear un nuevo PIN."}
+                    else:
+                        return {"respuesta": "Hubo un error al enviar el correo. Intenta más tarde."}
 
-            if id_bach:  # Si la IA nos devolvió un ID (ya sea existente o nuevo)
-                estado_conversacion["datos_usuario"]["id_bachillerato"] = id_bach
-                estado_conversacion["paso_actual"] = "pidiendo_carrera"
-                respuesta_texto = "¡Excelente escuela! 🏫 Por último, ¿qué carrera te interesa estudiar?"
-                opciones_lista = ["Sistemas", "Mecatrónica", "Industrial", "Bioquímica", "Electromecánica",
-                                  "Gastronomía"]
-            else:
-                # Si la IA dijo que es falsa o no tiene sentido
-                respuesta_texto = "Hmm, no logré reconocer esa preparatoria o bachillerato. 🤔 ¿Podrías escribir el nombre completo o las siglas correctas de tu escuela, por favor?"
+                # Lógica de verificación de PIN normal
+                conexion = mysql.connector.connect(host="localhost", user="root", password="blaky2507",database="itsabot", collation="utf8mb4_unicode_ci")
 
-        elif estado_conversacion["paso_actual"] == "pidiendo_carrera":
-            id_car = obtener_id_carrera(texto)
-            if id_car:
-                estado_conversacion["datos_usuario"]["id_carrera"] = id_car
-                # ¡AHORA SÍ GUARDAMOS CON TODOS LOS DATOS!
-                guardar_en_mysql(estado_conversacion["datos_usuario"])
-                estado_conversacion["paso_actual"] = "menu_libre"
-                respuesta_texto = "¡Registro completo! 🎉 Ya eres parte de nuestros aspirantes. ¿En qué puedo ayudarte hoy?"
-                opciones_lista = ["1️⃣ Información de carreras", "2️⃣ Costos"]
-            else:
-                respuesta_texto = "Lo siento, actualmente no contamos con esa carrera. 😅 ¿Te interesa alguna de estas?"
-                opciones_lista = ["Sistemas", "Mecatrónica", "Industrial", "Bioquímica", "Electromecánica",
-                                  "Gastronomía"]
+                cursor = conexion.cursor(dictionary=True)
+                cursor.execute("SELECT pin_seguridad FROM prospectos WHERE correo = %s",
+                               (estado_conversacion["datos_usuario"]["correo"],))
+                res = cursor.fetchone()
+                conexion.close()
 
-    # ==========================================
-    # 2. ZONA LIBRE (El usuario ya nos dio sus datos)
-    # ==========================================
-        elif estado_conversacion["paso_actual"] == "menu_libre":
+                if texto == res["pin_seguridad"]:
+                    estado_conversacion["paso_actual"] = "usuario_logueado"
+                    return {
+                        "respuesta": "¡Acceso concedido! ✅||¿En qué puedo ayudarte hoy con tu proceso de admisión?",
+                        "opciones": ["Consultar Estatus", "Requisitos", "Cerrar Sesión"]
+                    }
+                else:
+                    return {"respuesta": "PIN incorrecto. Inténtalo de nuevo o selecciona 'Olvidé mi PIN'."}
 
-            # Volver al menú
-            if texto in ["🎯 menú principal", "inicio", "menú"]:
-                respuesta_texto = "¿En qué más puedo ayudarte hoy?"
-                opciones_lista = ["1️⃣ Información de carreras", "2️⃣ Fechas de admisión", "3️⃣ Costos"]
+            # --- FLUJO 3: RECUPERACIÓN DE PIN ---
+            elif paso == "esperando_codigo_correo":
+                if texto == estado_conversacion["codigo_verificacion"]:
+                    estado_conversacion["paso_actual"] = "creando_nuevo_pin"
+                    return {"respuesta": "¡Código correcto! Ahora, por favor ingresa tu **nuevo PIN de 4 dígitos**."}
+                else:
+                    return {"respuesta": "Código incorrecto. Revisa tu correo nuevamente."}
 
-            # Menú de carreras
-            elif "1️⃣" in texto or "carreras" in texto:
-                respuesta_texto = "Contamos con:||• Ingenierías: Sistemas, Bioquímica, Mecatrónica, Industrial, Electromecánica.||• Licenciatura: Gastronomía.||¿De cuál deseas detalles?"
-                opciones_lista = ["Sistemas", "Bioquímica", "Mecatrónica", "Industrial", "Electromecánica", "Gastronomía",
-                                  "🎯 Menú principal"]
+            elif paso == "creando_nuevo_pin":
+                if len(texto) == 4 and texto.isdigit():
+                    # Actualizar en la base de datos
+                    conexion = mysql.connector.connect(host="localhost", user="root", password="blaky2507",database="itsabot", collation="utf8mb4_unicode_ci")
+                    cursor = conexion.cursor()
+                    cursor.execute("UPDATE prospectos SET pin_seguridad = %s WHERE correo = %s",
+                                   (texto, estado_conversacion["datos_usuario"]["correo"]))
+                    conexion.commit()
+                    conexion.close()
 
-            # DETALLE DE CARRERAS (DINÁMICO - Tu lógica intacta)
-            elif any(c in texto for c in
-                     ["sistemas", "bioquímica", "mecatrónica", "industrial", "electromecánica", "gastronomía"]):
-                c_clave = ""
-                if "sistemas" in texto:
-                    c_clave = "sistemas"
-                elif "bioquímica" in texto or "bioquimica" in texto:
-                    c_clave = "bioquimica"
-                elif "mecatrónica" in texto or "mecatronica" in texto:
-                    c_clave = "mecatronica"
-                elif "industrial" in texto:
-                    c_clave = "industrial"
-                elif "electromecánica" in texto or "electromecanica" in texto:
-                    c_clave = "electromecanica"
-                elif "gastronomía" in texto or "gastronomia" in texto:
-                    c_clave = "gastronomia"
+                    estado_conversacion["paso_actual"] = "usuario_logueado"
+                    return {
+                        "respuesta": "¡PIN actualizado con éxito! Ya puedes usar el sistema.||¿Qué deseas consultar?"}
+                else:
+                    return {"respuesta": "El PIN debe ser de 4 números exactamente."}
 
-                info = info_carreras[c_clave]
-                respuesta_texto = f"La {info['nombre']} tiene una duración de {info['duracion']} con especialidad en {info['especialidad']}.||🎯 Perfil: {info['perfil']}||💼 Campo Laboral: {info['campo_laboral']}||🔗 <a href='{info['plan_estudios']}' target='_blank'>Ver plan de estudios</a>"
-                opciones_lista = ["🎯 Menú principal"]
+            # --- AQUÍ SIGUE TU FLUJO NORMAL DE REGISTRO (pidiendo_nombre, pidiendo_telefono, etc.) ---
+            elif paso == "pidiendo_nombre":
 
-            # PREGUNTA LIBRE (USANDO LA API DE GROQ CON LABIA)
+                if texto in ["hola", "inicio", "arrancar", "menú", "🎯 menú principal", ""]:
+                    respuesta_texto = "¡Hola! Qué gusto saludarte. 🌟 Soy ItsaBot, el asistente de admisiones. Estoy súper emocionado de ayudarte. Para darte la mejor atención, ¿me podrías regalar tu nombre completo por favor?"
+                else:
+                    # ¡Llamamos a la nueva función de IA!
+                    nombre_validado = validar_nombre_ia(texto, client)
+
+                    if nombre_validado:
+                        estado_conversacion["datos_usuario"]["nombre"] = nombre_validado
+                        estado_conversacion["paso_actual"] = "pidiendo_edad"
+                        respuesta_texto = f"¡Mucho gusto, {nombre_validado}! 🤝 Oye, y cuéntame, ¿qué edad tienes?"
+                    else:
+                        respuesta_texto = "Mmm, ese no parece un nombre real. 🤔 Por favor, escríbeme tu nombre y apellido verdaderos para poder registrarte correctamente."
+
+            elif paso == "pidiendo_edad":
+                if es_edad_valida(texto):
+                    estado_conversacion["datos_usuario"]["edad"] = int(texto)
+                    estado_conversacion["paso_actual"] = "pidiendo_telefono"
+                    respuesta_texto = "¡Súper! 🚀 ¿Cuál es tu número de teléfono a 10 dígitos?"
+                else:
+                    respuesta_texto = "Escribe solo tu edad en números (ejemplo: 17)."
+
+            elif paso == "pidiendo_telefono":
+                if es_telefono_valido(texto):
+                    estado_conversacion["datos_usuario"]["telefono"] = texto
+                    estado_conversacion["paso_actual"] = "pidiendo_correo"
+                    respuesta_texto = "¡Anotado! 📱 Ahora, ¿cuál es tu correo electrónico?"
+                else:
+                    respuesta_texto = "Escribe un número a 10 dígitos (ejemplo: 2441234567)."
+
+            elif paso == "pidiendo_correo":
+                if es_correo_valido(texto):
+                    estado_conversacion["datos_usuario"]["correo"] = texto
+                    estado_conversacion["paso_actual"] = "pidiendo_bachillerato"
+                    respuesta_texto = "¡Gracias! 📧 ¿De qué bachillerato o preparatoria vienes?"
+                else:
+                    respuesta_texto = "Escribe un correo válido (ejemplo: usuario@gmail.com)."
+
+            elif paso == "pidiendo_bachillerato":
+                # Llamamos a nuestra nueva súper-función con IA, pasándole el cliente de Groq
+                id_bach = validar_y_obtener_bachillerato(texto, client)
+
+                if id_bach:  # Si la IA nos devolvió un ID (ya sea existente o nuevo)
+                    estado_conversacion["datos_usuario"]["id_bachillerato"] = id_bach
+                    estado_conversacion["paso_actual"] = "pidiendo_carrera"
+                    respuesta_texto = "¡Excelente escuela! 🏫 Por último, ¿qué carrera te interesa estudiar?"
+                    opciones_lista = ["Sistemas", "Mecatrónica", "Industrial", "Bioquímica", "Electromecánica",
+                                      "Gastronomía"]
+                else:
+                    # Si la IA dijo que es falsa o no tiene sentido
+                    respuesta_texto = "Hmm, no logré reconocer esa preparatoria o bachillerato. 🤔 ¿Podrías escribir el nombre completo o las siglas correctas de tu escuela, por favor?"
+
+            elif paso == "pidiendo_carrera":
+                # Buscamos qué carrera eligió
+                id_car = obtener_id_carrera(texto)
+                if id_car:
+                    estado_conversacion["datos_usuario"]["id_carrera"] = id_car
+
+                    # CAMBIO: En lugar de finalizar, pedimos el PIN
+                    estado_conversacion["paso_actual"] = "creando_pin_registro"
+                    return {
+                        "respuesta": "¡Excelente elección! 🎓||Ya casi terminamos. Para que puedas consultar tu estatus después, **crea un PIN de 4 números** (ejemplo: 1234).",
+                        "opciones": []
+                    }
+                else:
+                    return {"respuesta": "Por favor, elige una de las carreras de los botones."}
+
+            elif paso == "creando_pin_registro":
+                # Validamos que sean 4 dígitos exactos
+                if len(texto) == 4 and texto.isdigit():
+                    estado_conversacion["datos_usuario"]["pin"] = texto
+
+                    # GUARDAR EN BASE DE DATOS
+                    guardar_en_mysql(estado_conversacion["datos_usuario"])
+
+                    # Limpiamos el estado para que pueda volver a empezar si saluda de nuevo
+                    estado_conversacion["paso_actual"] = "saludo_inicial"
+
+                    return {
+                        "respuesta": f"¡Perfecto! Tu registro se ha completado con éxito. ✅||Tu PIN ha sido guardado. Ahora puedes usar el botón **'Ya soy aspirante'** para consultar tus avances.||¡Mucho éxito en tu proceso de admisión! 🐾",
+                        "opciones": ["Inicio"]
+                    }
+                else:
+                    return {"respuesta": "El PIN debe ser de **4 números**. Inténtalo de nuevo."}
+
+        # ==========================================
+        # 2. ZONA LIBRE (El usuario ya nos dio sus datos)
+        # ==========================================
+            elif paso == "menu_libre":
+
+                # Volver al menú
+                if texto in ["🎯 menú principal", "inicio", "menú"]:
+                    respuesta_texto = "¿En qué más puedo ayudarte hoy?"
+                    opciones_lista = ["1️⃣ Información de carreras", "2️⃣ Fechas de admisión", "3️⃣ Costos"]
+
+                # Menú de carreras
+                elif "1️⃣" in texto or "carreras" in texto:
+                    respuesta_texto = "Contamos con:||• Ingenierías: Sistemas, Bioquímica, Mecatrónica, Industrial, Electromecánica.||• Licenciatura: Gastronomía.||¿De cuál deseas detalles?"
+                    opciones_lista = ["Sistemas", "Bioquímica", "Mecatrónica", "Industrial", "Electromecánica", "Gastronomía",
+                                      "🎯 Menú principal"]
+
+                # DETALLE DE CARRERAS (DINÁMICO - Tu lógica intacta)
+                elif any(c in texto for c in
+                         ["sistemas", "bioquímica", "mecatrónica", "industrial", "electromecánica", "gastronomía"]):
+                    c_clave = ""
+                    if "sistemas" in texto:
+                        c_clave = "sistemas"
+                    elif "bioquímica" in texto or "bioquimica" in texto:
+                        c_clave = "bioquimica"
+                    elif "mecatrónica" in texto or "mecatronica" in texto:
+                        c_clave = "mecatronica"
+                    elif "industrial" in texto:
+                        c_clave = "industrial"
+                    elif "electromecánica" in texto or "electromecanica" in texto:
+                        c_clave = "electromecanica"
+                    elif "gastronomía" in texto or "gastronomia" in texto:
+                        c_clave = "gastronomia"
+
+                    info = info_carreras[c_clave]
+                    respuesta_texto = f"La {info['nombre']} tiene una duración de {info['duracion']} con especialidad en {info['especialidad']}.||🎯 Perfil: {info['perfil']}||💼 Campo Laboral: {info['campo_laboral']}||🔗 <a href='{info['plan_estudios']}' target='_blank'>Ver plan de estudios</a>"
+                    opciones_lista = ["🎯 Menú principal"]
+
                 # PREGUNTA LIBRE (USANDO LA API DE GROQ CON LABIA)
-            else:
-                try:
-                    chat_completion = client.chat.completions.create(
-                        messages=[
-                            {"role": "system",
-                             "content": "Eres ItsaBot, un asistente de admisiones del ITSA. Tienes una personalidad carismática, alegre y servicial. Usa emojis para expresarte. Si no sabes algo, dirige amablemente al WhatsApp 244 120 90 50."},
-                            {"role": "user", "content": texto},
-                        ],
-                        model="llama-3.1-8b-instant",
-                    )
-                    respuesta_texto = chat_completion.choices[0].message.content
-                except Exception as e:
-                    # 👉 ESTA ES LA LÍNEA NUEVA: Imprimirá en tu terminal por qué falló Groq
-                    print(f"❌ ERROR DE GROQ: {e}")
+                    # PREGUNTA LIBRE (USANDO LA API DE GROQ CON LABIA)
+                else:
+                    try:
+                        chat_completion = client.chat.completions.create(
+                            messages=[
+                                {"role": "system",
+                                 "content": "Eres ItsaBot, un asistente de admisiones del ITSA. Tienes una personalidad carismática, alegre y servicial. Usa emojis para expresarte. Si no sabes algo, dirige amablemente al WhatsApp 244 120 90 50."},
+                                {"role": "user", "content": texto},
+                            ],
+                            model="llama-3.1-8b-instant",
+                        )
+                        respuesta_texto = chat_completion.choices[0].message.content
+                    except Exception as e:
+                        # 👉 ESTA ES LA LÍNEA NUEVA: Imprimirá en tu terminal por qué falló Groq
+                        print(f"❌ ERROR DE GROQ: {e}")
 
-                    respuesta_texto = "Ay, caray. 😅 Tuve un problema técnico momentáneo. Por favor contacta a admisiones al 244 120 90 50."
-                opciones_lista = ["🎯 Menú principal"]
+                        respuesta_texto = "Ay, caray. 😅 Tuve un problema técnico momentáneo. Por favor contacta a admisiones al 244 120 90 50."
+                    opciones_lista = ["🎯 Menú principal"]
 
 
-        # ==========================================
-        # 3. GENERAR AUDIO Y RESPUESTA FINAL HTML
-        # ==========================================
-        try:
-            # Quitamos etiquetas HTML y reemplazamos los '||' por puntos para que la voz haga pausas
-            t_hablar = re.sub(r'<[^>]+>', '', respuesta_texto.replace("||", ". "))
-            audio_b64 = await generar_audio_neuronal(t_hablar)
+            # ==========================================
+            # 3. GENERAR AUDIO Y RESPUESTA FINAL HTML
+            # ==========================================
+            try:
+                # Quitamos etiquetas HTML y reemplazamos los '||' por puntos para que la voz haga pausas
+                t_hablar = re.sub(r'<[^>]+>', '', respuesta_texto.replace("||", ". "))
+                audio_b64 = await generar_audio_neuronal(t_hablar)
 
-            # Enviamos la respuesta cambiando '||' por <br><br> para que se vea bonito en pantalla
-            return {
-                "respuesta": respuesta_texto.replace("||", "<br><br>"),
-                "opciones": opciones_lista,
-                "audio": audio_b64
-            }
-        except:
-            return {
-                "respuesta": respuesta_texto.replace("||", "<br><br>"),
-                "opciones": opciones_lista,
-                "audio": None
-            }
+                # Enviamos la respuesta cambiando '||' por <br><br> para que se vea bonito en pantalla
+                return {
+                    "respuesta": respuesta_texto.replace("||", "<br><br>"),
+                    "opciones": opciones_lista,
+                    "audio": audio_b64
+                }
+            except:
+                return {
+                    "respuesta": respuesta_texto.replace("||", "<br><br>"),
+                    "opciones": opciones_lista,
+                    "audio": None
+                }
+
 
 
 def guardar_en_mysql(datos):
@@ -401,8 +533,8 @@ def guardar_en_mysql(datos):
         cursor = conexion.cursor()
 
         sql = """INSERT INTO prospectos 
-                 (nombre_completo, correo, telefono, edad, id_bachillerato, id_carrera_interes, canal) 
-                 VALUES (%s, %s, %s, %s, %s, %s, %s)"""
+                 (nombre_completo, correo, telefono, edad, id_bachillerato, id_carrera_interes, canal, pin_seguridad) 
+                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s)"""
 
         valores = (
             datos.get("nombre"),
@@ -411,7 +543,8 @@ def guardar_en_mysql(datos):
             datos.get("edad"),
             datos.get("id_bachillerato"),  # ID obtenido de la BD
             datos.get("id_carrera"),  # ID obtenido de la BD
-            "chatbot"
+            "chatbot",
+            datos.get("pin")
         )
 
         cursor.execute(sql, valores)
@@ -421,3 +554,47 @@ def guardar_en_mysql(datos):
         print("✅ Registro guardado con éxito en la base de datos.")
     except Exception as e:
         print(f"❌ Error crítico al guardar: {e}")
+
+
+def enviar_correo_recuperacion(correo_destino, codigo_generado):
+    # Ahora las leemos de forma segura
+    correo_bot = os.getenv("EMAIL_BOT")
+    password_bot = os.getenv("PASSWORD_BOT")
+
+    mensaje = MIMEMultipart()
+    mensaje['From'] = f"LinceBot ITSA <{correo_bot}>"
+    mensaje['To'] = correo_destino
+    mensaje['Subject'] = "Código de Recuperación - Admisiones ITSA"
+
+    cuerpo = f"""
+    Hola,
+
+    Se ha solicitado recuperar el PIN de acceso para tu proceso de admisión.
+    Tu código de seguridad es: {codigo_generado}
+
+    Por favor, escribe este código en el chat para continuar.
+
+    Saludos,
+    LinceBot 🐾
+    """
+    mensaje.attach(MIMEText(cuerpo, 'plain'))
+
+    try:
+        # Nos conectamos al servidor de Gmail
+        servidor = smtplib.SMTP('smtp.gmail.com', 587)
+        servidor.starttls()  # Encriptamos la conexión
+        servidor.login(correo_bot, password_bot)
+
+        # Enviamos el correo
+        servidor.send_message(mensaje)
+        servidor.quit()
+        return True
+    except Exception as e:
+        print(f"❌ Error al enviar correo: {e}")
+        return False
+
+
+
+
+# Esto le dice a tu servidor que cuando alguien entre a la raíz, muestre el frontend
+app.mount("/", StaticFiles(directory="frontend", html=True), name="frontend")

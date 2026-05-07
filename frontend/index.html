@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Chatbot Admisiones ITSA</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="chat-container">
+        <div id="mascota-container">
+            <img id="mascota-img" src="itsalogo.png" alt="Logo ITSA" style="width: 60px; height: 60px; border-radius: 50%; object-fit: cover; box-shadow: 0 4px 8px rgba(0,0,0,0.2);">
+            <h3 style="margin: 5px 0 0 0;">ItsaBot (Admisiones)</h3>
+        </div>
+
+        <div id="chat-box">
+            <div id="pantalla-inicio" style="text-align: center; margin-top: 80px;">
+                <p>¡Hola! Soy el asistente virtual del ITSA.</p>
+                <button onclick="arrancarChat()" style="background-color: #1E88E5; color: white; border: none; padding: 12px 24px; border-radius: 20px; font-size: 16px; cursor: pointer; font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                    ▶️ Iniciar conversación
+                </button>
+            </div>
+        </div>
+
+        <div id="contenedor-botones"></div>
+
+        <div id="input-container">
+            <input type="text" id="user-input" placeholder="Escribe tu mensaje...">
+            <button onclick="capturarYEnviar()">Enviar</button>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+
+    <script>
+        // NUEVA FUNCIÓN: Se activa cuando el usuario hace clic en "Iniciar conversación"
+        function arrancarChat() {
+            // 1. Desaparecemos el botón inicial
+            document.getElementById("pantalla-inicio").style.display = "none";
+
+            // 2. Le mandamos el "hola" a Python.
+            // Como ya hubo un clic, el navegador YA DARÁ PERMISO para que la voz suene.
+            enviarMensaje("hola");
+        }
+
+        // Función para el botón "Enviar" de la caja de texto
+        function capturarYEnviar() {
+            const input = document.getElementById("user-input");
+            if(input.value.trim() !== "") {
+                enviarMensaje(input.value);
+                input.value = "";
+            }
+        }
+    </script>
+</body>
+</html>

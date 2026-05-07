@@ -1,0 +1,14 @@
+body { font-family: Arial, sans-serif; background-color: #f4f4f9; display: flex; justify-content: center; padding: 50px; }
+#chat-container { width: 450px; background: white; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); overflow: hidden; display: flex; flex-direction: column; }
+#mascota-container { text-align: center; padding: 15px; background-color: #003366; color: white; }
+#mascota-img { width: 100px; height: 100px; border-radius: 50%; background: white; object-fit: cover; }
+#chat-box { height: 350px; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 10px; }
+.mensaje { padding: 10px; border-radius: 8px; max-width: 80%; line-height: 1.4; }
+.usuario { align-self: flex-end; background: #d1e7dd; }
+.lince { align-self: flex-start; background: #e2e3e5; }
+#botones-flujo { display: flex; flex-wrap: wrap; gap: 5px; padding: 10px; background: #f9f9f9; border-top: 1px solid #ddd; justify-content: center;}
+.btn-flujo { background: #1E88E5; color: white; border: none; border-radius: 15px; padding: 8px 12px; font-size: 13px; cursor: pointer; transition: 0.3s; }
+.btn-flujo:hover { background: #003366; }
+#input-container { display: flex; padding: 10px; border-top: 1px solid #ddd; }
+input { flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 5px; outline: none;}
+button { padding: 10px 15px; margin-left: 5px; background: #003366; color: white; border: none; border-radius: 5px; cursor: pointer; }
