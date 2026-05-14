@@ -1,13 +1,11 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import edge_tts
 import tempfile
-import os
 import base64
 import re
 import mysql.connector
-from datetime import datetime
 from groq import Groq
 import os
 from dotenv import load_dotenv
@@ -15,8 +13,8 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import random
-import traceback
 from fastapi.staticfiles import StaticFiles
+import hashlib
 
 
 def es_edad_valida(edad):
@@ -127,32 +125,32 @@ def validar_y_obtener_bachillerato(nombre_usuario, cliente_groq):
         # Sacamos las escuelas de la BD
         cursor.execute("SELECT id, nombre FROM bachilleratos")
         escuelas_db = cursor.fetchall()
-        lista_nombres = [escuela[1] for escuela in escuelas_db]
 
-        # Diccionario con todo en minúsculas para que no haya fallos al buscar
-        diccionario_escuelas = {escuela[1].lower(): escuela[0] for escuela in escuelas_db}
+        # Diccionario para buscar rápido ignorando mayúsculas
+        diccionario_escuelas = {nombre.lower(): id_bach for id_bach, nombre in escuelas_db}
+        nombres_db_str = "\n".join([f"- {nombre}" for id_bach, nombre in escuelas_db])
 
         prompt = f"""
-        Eres un validador estricto de escuelas preparatorias/bachilleratos en México.
-        Lista de escuelas registradas: {lista_nombres}
+        Actúa como un validador de escuelas preparatorias de México.
+        El usuario ingresó: "{nombre_usuario}"
 
-        Escuela escrita por el usuario: "{nombre_usuario}"
+        Tengo esta lista de escuelas oficiales en mi base de datos:
+        {nombres_db_str}
 
-        Reglas:
-        1. Si es una variación, sinónimo o acrónimo de una escuela de la lista, responde exactamente:
-           OK_EXISTE|Nombre exacto de la lista
-        2. Si NO está en la lista pero es un bachillerato real, corrige su ortografía y responde:
-           OK_NUEVA|Nombre formal corregido
-        3. Si son letras al azar ("asdf"), groserías o no es una escuela, responde exactamente:
-           FALSO
+        REGLAS DE BÚSQUEDA:
+        1. Analiza si lo que escribió el usuario es una abreviación o variación de alguna escuela de la lista (ej. "prepa buap" = "Preparatoria BUAP", "cbtis 16" = "CBTis No. 16", "cobaep" = "Colegio de Bachilleres").
+        2. Si logras relacionarlo con una de la lista, responde: OK_EXISTE|Nombre Exacto de la Lista
+        3. Si NO está en la lista, pero claramente es un nombre o sigla válida de una preparatoria real, responde: OK_NUEVA|Nombre Formal y Corregido
+        4. Solo rechaza si es texto sin sentido ("asdfg"), solo números o groserías. En ese caso responde: FALSO
 
-        No des saludos ni explicaciones.
+        FORMATO ESTRICTO:
+        Responde ÚNICAMENTE con el formato (OK_EXISTE|..., OK_NUEVA|... o FALSO). Cero texto extra.
         """
 
         chat_completion = cliente_groq.chat.completions.create(
             messages=[{"role": "user", "content": prompt}],
             model="llama-3.1-8b-instant",
-            temperature=0.1
+            temperature=0.0
         )
         respuesta_original = chat_completion.choices[0].message.content.strip()
 
@@ -162,7 +160,6 @@ def validar_y_obtener_bachillerato(nombre_usuario, cliente_groq):
 
         if palabra_clave == "OK_EXISTE" and len(partes) > 1:
             nombre_db = partes[1].strip()
-            # Buscamos en el diccionario sin importar mayúsculas
             if nombre_db.lower() in diccionario_escuelas:
                 print(f"🤖 IA vinculó '{nombre_usuario}' con '{nombre_db}'")
                 return diccionario_escuelas[nombre_db.lower()]
@@ -181,30 +178,38 @@ def validar_y_obtener_bachillerato(nombre_usuario, cliente_groq):
         print(f"❌ Error en IA Bachillerato: {e}")
         return None
     finally:
-        if 'cursor' in locals(): cursor.close()
-        if 'conexion' in locals(): conexion.close()
+        if 'conexion' in locals() and conexion.is_connected():
+            cursor.close()
+            conexion.close()
 
 
 def validar_nombre_ia(nombre_usuario, cliente_groq):
     try:
         prompt = f"""
-        Analiza si el siguiente texto es un nombre humano real (especialmente de México/Latinoamérica).
-        Texto del usuario: "{nombre_usuario}"
+        Actúa como un validador de nombres para un sistema de admisiones en México.
+        El usuario ha ingresado este nombre: "{nombre_usuario}"
 
-        Reglas:
-        - Si es un nombre humano real (como "Axel Jimenez Bravo", "Juan Pérez", "Ana"), responde exactamente así:
-          OK|Nombre Corregido
-          (Ejemplo: OK|Axel Jiménez Bravo)
-        - Si son letras al azar ("asdf"), ficción ("Batman"), objetos o groserías, responde exactamente:
-          FALSO
+        REGLAS ESTRICTAS DE VALIDACIÓN:
+        1. ACEPTA el nombre si tiene estructura humana, incluso si es raro. 
+        2. IMPORTANTE: En México existen apellidos de origen náhuatl/indígena (ej. Coyotl, Tepetl, Xicoténcatl), nombres astronómicos/mitológicos (ej. Aldebaran, Venus) y nombres extranjeros. ACEPTALOS TODOS sin dudar.
+        3. Solo RECHAZA (respondiendo FALSO) si es:
+           - Puro tecleo al azar (ej. "asdfgh", "qwerty").
+           - Insultos o palabras obscenas.
+           - Objetos inanimados obvios usados a modo de burla (ej. "Mesa de Madera").
+           - Solo números.
+        4. Si es válido, devuélvelo con la primera letra en mayúscula de cada palabra.
 
-        No incluyas saludos ni texto extra.
+        FORMATO DE RESPUESTA ESPERADO:
+        - Si es válido: OK|Nombre Corregido
+        - Si es inválido: FALSO
+
+        Responde ÚNICAMENTE con el formato, sin saludos ni explicaciones.
         """
 
         chat_completion = cliente_groq.chat.completions.create(
             messages=[{"role": "user", "content": prompt}],
             model="llama-3.1-8b-instant",
-            temperature=0.1
+            temperature=0.0
         )
         respuesta_ai = chat_completion.choices[0].message.content.strip()
 
@@ -293,41 +298,54 @@ async def procesar_chat(mensaje: MensajeUsuario):
                         estado_conversacion["datos_usuario"]["correo"] = texto
                         estado_conversacion["datos_usuario"]["nombre"] = usuario["nombre_completo"]
                         estado_conversacion["paso_actual"] = "login_esperando_pin"
-                        respuesta_texto = "¡Te encontré!🥳 || ¡Hola {usuario['nombre_completo']}! || Por favor, ingresa tu **PIN de 4 dígitos**."
+                        respuesta_texto = f"¡Te encontré!🥳 || ¡Hola {usuario['nombre_completo']}! || Por favor, ingresa tu **PIN de 4 dígitos**."
                         opciones_lista = ["olvide mi pin"]
                     else:
 
                         respuesta_texto = "No encontré ningún registro con ese correo. Inténtalo de nuevo o elige 'Nuevo Registro'."
 
             elif paso == "login_esperando_pin":
-                if texto == "olvide mi pin":
+                if texto in ["olvide mi pin", "olvidé mi pin"]:
                     # Generar código de 4 dígitos y enviar correo
                     codigo = str(random.randint(1000, 9999))
                     estado_conversacion["codigo_verificacion"] = codigo
                     correo = estado_conversacion["datos_usuario"]["correo"]
 
+
+
                     if enviar_correo_recuperacion(correo, codigo):
                         estado_conversacion["paso_actual"] = "esperando_codigo_correo"
-                        respuesta_texto="Te he enviado un código de seguridad a **{correo}**.||Por favor, escríbelo aquí para crear un nuevo PIN."
+                        respuesta_texto= f"Te he enviado un código de seguridad a **{correo}**.||Por favor, escríbelo aquí para crear un nuevo PIN."
                     else:
                         respuesta_texto="Hubo un error al enviar el correo. Intenta más tarde."
+                        opciones_lista = ["Olvidé mi PIN"]
+                else:
+                    try:
+                        pin_ingresado_hash = hashlib.sha256(texto.encode('utf-8')).hexdigest()
 
                 # Lógica de verificación de PIN normal
-                conexion = mysql.connector.connect(host="localhost", user="root", password="blaky2507",database="itsabot", collation="utf8mb4_unicode_ci")
+                        conexion = mysql.connector.connect(host="localhost", user="root", password="blaky2507",database="itsabot", collation="utf8mb4_unicode_ci")
 
-                cursor = conexion.cursor(dictionary=True)
-                cursor.execute("SELECT pin_seguridad FROM prospectos WHERE correo = %s",
-                               (estado_conversacion["datos_usuario"]["correo"],))
-                res = cursor.fetchone()
-                conexion.close()
+                        cursor = conexion.cursor(dictionary=True)
+                        cursor.execute("SELECT pin_seguridad FROM prospectos WHERE correo = %s",
+                                       (estado_conversacion["datos_usuario"]["correo"],))
+                        res = cursor.fetchone()
+                        conexion.close()
 
-                if texto == res["pin_seguridad"]:
-                    estado_conversacion["paso_actual"] = "menu_libre"
-                    respuesta_texto = f"¡Acceso concedido! ✅ Bienvenido de vuelta. {MENU_PRINCIPAL_TEXTO}"
-                    opciones_lista = MENU_PRINCIPAL_OPCIONES
+                        if res and pin_ingresado_hash== res["pin_seguridad"]:
+                            estado_conversacion["paso_actual"] = "menu_libre"
+                            respuesta_texto = f"¡Acceso concedido! ✅ Bienvenido de vuelta. {MENU_PRINCIPAL_TEXTO}"
+                            opciones_lista = MENU_PRINCIPAL_OPCIONES
 
-                else:
-                    respuesta_texto = "PIN incorrecto. Inténtalo de nuevo o selecciona 'Olvidé mi PIN'."
+                        else:
+                            respuesta_texto = "PIN incorrecto. Inténtalo de nuevo o selecciona 'Olvidé mi PIN'."
+                            opciones_lista = ["Olvidé mi PIN"]
+
+                    except Exception as e:
+                        print(f"Error verificando PIN: {e}")
+                        respuesta_texto = "Hubo un error al verificar tu PIN en el servidor."
+                        opciones_lista = ["Olvidé mi PIN"]
+
 
             # --- FLUJO 3: RECUPERACIÓN DE PIN ---
             elif paso == "esperando_codigo_correo":
@@ -340,10 +358,11 @@ async def procesar_chat(mensaje: MensajeUsuario):
             elif paso == "creando_nuevo_pin":
                 if len(texto) == 4 and texto.isdigit():
                     # Actualizar en la base de datos
+                    nuevo_pin_hash = hashlib.sha256(texto.encode('utf-8')).hexdigest()
                     conexion = mysql.connector.connect(host="localhost", user="root", password="blaky2507",database="itsabot", collation="utf8mb4_unicode_ci")
                     cursor = conexion.cursor()
                     cursor.execute("UPDATE prospectos SET pin_seguridad = %s WHERE correo = %s",
-                                   (texto, estado_conversacion["datos_usuario"]["correo"]))
+                                   (nuevo_pin_hash, estado_conversacion["datos_usuario"]["correo"]))
                     conexion.commit()
                     conexion.close()
 
@@ -520,6 +539,8 @@ def guardar_en_mysql(datos):
             collation="utf8mb4_unicode_ci"
         )
         cursor = conexion.cursor()
+        pin_plano = datos.get("pin")
+        pin_hash = hashlib.sha256(pin_plano.encode('utf-8')).hexdigest()
 
         sql = """INSERT INTO prospectos 
                  (nombre_completo, correo, telefono, edad, id_bachillerato, id_carrera_interes, canal, pin_seguridad) 
@@ -533,7 +554,7 @@ def guardar_en_mysql(datos):
             datos.get("id_bachillerato"),  # ID obtenido de la BD
             datos.get("id_carrera"),  # ID obtenido de la BD
             "chatbot",
-            datos.get("pin")
+            pin_hash
         )
 
         cursor.execute(sql, valores)
