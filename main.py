@@ -164,6 +164,11 @@ def validar_y_obtener_bachillerato(nombre_usuario, cliente_groq):
             if nombre_db.lower() in diccionario_escuelas:
                 print(f"🤖 IA vinculó '{nombre_usuario}' con '{nombre_db}'")
                 return diccionario_escuelas[nombre_db.lower()]
+            else:
+                print(f"⚠️ IA dijo OK_EXISTE, pero '{nombre_db}' no estaba en el diccionario. Guardando como nueva...")
+                cursor.execute("INSERT INTO bachilleratos (nombre) VALUES (%s)", (nombre_db,))
+                conexion.commit()
+                return cursor.lastrowid
 
         elif palabra_clave == "OK_NUEVA" and len(partes) > 1:
             nombre_nuevo = partes[1].strip()
