@@ -103,12 +103,11 @@ class MainWin(tk.Toplevel):
         crow.pack(fill="x", pady=(0, 20))
 
         cards = [
-            ("Total\nregistrados",     str(st.get("total", 0)),          C_VINO),
-            (MESES[now.month]+f"\n{now.year}",
-             str(st.get("mes", 0)),                                       C_AZUL_TAG),
-            ("Bachilleratos\ndistintos",str(st.get("bachilleratos", 0)), C_VERDE_TAG),
-            ("Carrera top\n"+st.get("carrera_top","—"),
-             f"{st.get('carrera_pct',0)}%",                              C_MORADO_TAG),
+            ("Total\nregistrados", str(st.get("total", 0)), C_VINO),
+            ("Nuevos\n(Hoy)", str(st.get("hoy", 0)), C_AZUL_TAG),
+            ("Bachilleratos\ndistintos", str(st.get("bachilleratos", 0)), C_VERDE_TAG),
+            ("Carrera top\n" + st.get("carrera_top", "—"),
+             f"{st.get('carrera_top_pct', 0)}%", C_MORADO_TAG),
         ]
         for lbl, val, accent in cards:
             c = tk.Frame(crow, bg=C_BLANCO,
@@ -357,12 +356,12 @@ class MainWin(tk.Toplevel):
         return "#546E7A"
 
     COLS = [
-        ("nombre_completo",     "Nombre completo",   22),
-        ("correo",              "Correo",            22),
+        ("nombre_completo", "Nombre completo", 20),
+        ("correo", "Correo", 26),
         ("nombre_bachillerato", "Bachillerato", 14),
-        ("nombre_carrera",      "Carrera de interés",18),
-        ("estatus_proceso", "Estatus de Admisión", 14),
-        ("fecha_registro",      "Fecha",             12),
+        ("nombre_carrera", "Carrera de interés", 26),
+        ("estatus_proceso", "Estatus de Admisión", 10),
+        ("fecha_registro", "Fecha", 8),
     ]
 
     def _tabla(self, parent, rows, num=False):
