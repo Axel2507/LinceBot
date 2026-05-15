@@ -1,105 +1,98 @@
-import mysql.connector
-from mysql.connector import Error
+import requests
 from tkinter import messagebox
 import hashlib
 
+URL_API = "http://18.188.220.164:5001"
+
 class Database:
     def __init__(self):
-        self.conn = None
-        self._connect()
+        self.api_url = URL_API
 
-    def _connect(self):
-        try:
-            self.conn = mysql.connector.connect(
-                host="localhost",
-                user="root",
-                password="blaky2507",
-                database="itsabot",
-                port=3306,
-                collation="utf8mb4_unicode_ci",
-                connection_timeout=6,
-            )
-        except Error as e:
-            messagebox.showerror("Error de conexion", f"No se pudo conectar a la base de datos:\n\n{e}")
 
-    def _ok(self) -> bool:
-        try:
-            if self.conn and self.conn.is_connected(): return True
-            self._connect()
-            return self.conn is not None
-        except Exception:
-            return False
 
     def login(self, correo: str, password: str):
-        if not self._ok(): return None
         try:
-            cur = self.conn.cursor(dictionary=True)
-            cur.execute("SELECT * FROM usuarios WHERE correo = %s AND activo = 1 LIMIT 1", (correo,))
-            user = cur.fetchone()
-            cur.close()
-            if not user: return None
             hash_password = hashlib.sha256(password.encode('utf-8')).hexdigest()
-            if user.get("password") == hash_password:
-                return user
+            respuesta = requests.post(
+                f"{self.api_url}/api/login",
+                json={"correo": correo, "password": hash_password},
+                timeout=5
+            )
+            if respuesta.status_code == 200:
+                return respuesta.json()  # La API nos devuelve los datos del usuario
             return None
-        except Exception as e:
-            messagebox.showerror("Error login", str(e))
+        except requests.exceptions.RequestException as e:
+            messagebox.showerror("Error login", f"No se pudo conectar a la API:\n\n{e}")
             return None
 
     def register(self, nombre, correo, password) -> bool:
-        if not self._ok(): return False
         try:
             hash_password = hashlib.sha256(password.encode('utf-8')).hexdigest()
-            cur = self.conn.cursor()
-            cur.execute(
-                "INSERT INTO usuarios (nombre, correo, password) VALUES (%s, %s, %s)",
-                (nombre, correo, hash_password)
+
+            respuesta = requests.post(
+                f"{self.api_url}/api/register",
+                json={"nombre": nombre, "correo": correo, "password": hash_password},
+                timeout=5
             )
-            self.conn.commit()
-            cur.close()
-            return True
-        except Exception as e:
-            messagebox.showerror("Error al registrar", str(e))
+
+            # Si la API responde con un 200 OK o 201 Created, el registro fue un éxito
+            return respuesta.status_code in [200, 201]
+
+        except requests.exceptions.RequestException as e:
+            messagebox.showerror("Error al registrar", f"No se pudo conectar a la API:\n\n{e}")
             return False
 
     def get_prospectos(self, filtro_carrera_nombre=None):
-        if not self._ok(): return []
         try:
-            cur = self.conn.cursor(dictionary=True)
+            parametros = {}
+            # Si hay un filtro, se lo mandamos a la API en la URL
             if filtro_carrera_nombre and filtro_carrera_nombre != "Todas las carreras":
-                cur.execute("SELECT * FROM v_prospectos WHERE nombre_carrera = %s ORDER BY fecha_registro DESC",
-                            (filtro_carrera_nombre,))
-            else:
-                cur.execute("SELECT * FROM v_prospectos ORDER BY fecha_registro DESC")
-            rows = cur.fetchall()
-            cur.close()
-            return rows
-        except Exception as e:
-            messagebox.showerror("Error consulta", str(e))
+                parametros = {"carrera": filtro_carrera_nombre}
+
+            respuesta = requests.get(
+                f"{self.api_url}/api/prospectos",
+                params=parametros,
+                timeout=5
+            )
+
+            if respuesta.status_code == 200:
+                return respuesta.json()  # Devuelve la lista de prospectos
+            return []
+
+        except requests.exceptions.RequestException as e:
+            messagebox.showerror("Error consulta", f"Fallo al obtener prospectos:\n\n{e}")
             return []
 
     def get_stats(self) -> dict:
-        if not self._ok(): return {}
-        stats = {}
         try:
-            cur = self.conn.cursor(dictionary=True)
-            cur.execute("SELECT * FROM v_estadisticas")
-            v_stats = cur.fetchone()
+            respuesta = requests.get(f"{self.api_url}/api/stats", timeout=5)
 
-            if v_stats:
-                stats["total"] = v_stats["total_prospectos"]
-                stats["mes"] = v_stats["prospectos_mes_actual"]
-                stats["bachilleratos"] = v_stats["bachilleratos_distintos"]
-                stats["carrera_top"] = v_stats["carrera_mas_popular"]
-                stats["finalizados"] = v_stats.get("prospectos_finalizados", 0)
+            if respuesta.status_code == 200:
+                return respuesta.json()  # Devuelve el diccionario con las estadísticas
+            return {}
 
-            cur.execute("SELECT nombre_bachillerato AS bach, COUNT(*) AS cnt FROM v_prospectos GROUP BY nombre_bachillerato ORDER BY cnt DESC LIMIT 6")
-            stats["bach_stats"] = cur.fetchall()
+        except requests.exceptions.RequestException as e:
+            messagebox.showerror("Error estadísticas", f"Fallo al obtener estadísticas:\n\n{e}")
+            return {}
 
-            cur.execute("SELECT nombre_carrera AS nombre_carrera, COUNT(*) AS cnt FROM v_prospectos GROUP BY nombre_carrera ORDER BY cnt DESC LIMIT 6")
-            stats["carrera_stats"] = cur.fetchall()
+    def get_prospectos(self, filtro_carrera_nombre=None, busqueda=""):
+        try:
+            parametros = {}
+            if filtro_carrera_nombre and filtro_carrera_nombre != "Todas las carreras":
+                parametros["carrera"] = filtro_carrera_nombre
 
-            cur.close()
-        except Exception as e:
-            messagebox.showerror("Error estadisticas", str(e))
-        return stats
+            if busqueda:
+                parametros["busqueda"] = busqueda
+
+            respuesta = requests.get(
+                f"{self.api_url}/api/prospectos",
+                params=parametros,
+                timeout=5
+            )
+
+            if respuesta.status_code == 200:
+                return respuesta.json()
+            return []
+        except requests.exceptions.RequestException as e:
+            messagebox.showerror("Error consulta", f"Fallo al obtener prospectos:\n\n{e}")
+            return []
