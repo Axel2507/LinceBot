@@ -119,7 +119,8 @@ async def generar_audio_neuronal(texto):
 
 def validar_y_obtener_bachillerato(nombre_usuario, cliente_groq):
     try:
-        conexion = mysql.connector.connect(host="localhost", user="root", password="blaky2507", database="itsabot", collation="utf8mb4_unicode_ci")
+        conexion = get_db_connection()
+        if not conexion: return {}
         cursor = conexion.cursor()
 
         # Sacamos las escuelas de la BD
@@ -232,7 +233,9 @@ def validar_nombre_ia(nombre_usuario, cliente_groq):
 
 def obtener_id_carrera(nombre_buscado):
     try:
-        conexion = mysql.connector.connect(host="localhost", user="root", password="blaky2507", database="itsabot", collation="utf8mb4_unicode_ci")
+        conexion = get_db_connection()
+        if not conexion: return []
+
         cursor = conexion.cursor()
         # Buscamos la carrera que coincida con lo que escribió el usuario
         cursor.execute("SELECT id FROM carreras WHERE nombre LIKE %s", (f"%{nombre_buscado}%",))
@@ -286,7 +289,8 @@ async def procesar_chat(mensaje: MensajeUsuario):
             # --- FLUJO 2: LOGIN (YA SOY ASPIRANTE) ---
             elif paso == "login_esperando_correo":
                 # Aquí verificamos si el correo existe en la base de datos
-                conexion = mysql.connector.connect(host="localhost", user="root", password="blaky2507",database="itsabot", collation="utf8mb4_unicode_ci")
+                conexion = get_db_connection()
+                if not conexion: return None
                 if conexion:
                     cursor = conexion.cursor(dictionary=True)
                     cursor.execute("SELECT nombre_completo, pin_seguridad FROM prospectos WHERE correo = %s",
@@ -324,7 +328,8 @@ async def procesar_chat(mensaje: MensajeUsuario):
                         pin_ingresado_hash = hashlib.sha256(texto.encode('utf-8')).hexdigest()
 
                 # Lógica de verificación de PIN normal
-                        conexion = mysql.connector.connect(host="localhost", user="root", password="blaky2507",database="itsabot", collation="utf8mb4_unicode_ci")
+                        conexion = get_db_connection()
+                        if not conexion: return False
 
                         cursor = conexion.cursor(dictionary=True)
                         cursor.execute("SELECT pin_seguridad FROM prospectos WHERE correo = %s",
@@ -359,7 +364,8 @@ async def procesar_chat(mensaje: MensajeUsuario):
                 if len(texto) == 4 and texto.isdigit():
                     # Actualizar en la base de datos
                     nuevo_pin_hash = hashlib.sha256(texto.encode('utf-8')).hexdigest()
-                    conexion = mysql.connector.connect(host="localhost", user="root", password="blaky2507",database="itsabot", collation="utf8mb4_unicode_ci")
+                    conexion = get_db_connection()
+                    if not conexion: return False
                     cursor = conexion.cursor()
                     cursor.execute("UPDATE prospectos SET pin_seguridad = %s WHERE correo = %s",
                                    (nuevo_pin_hash, estado_conversacion["datos_usuario"]["correo"]))
@@ -528,16 +534,24 @@ async def procesar_chat(mensaje: MensajeUsuario):
                 }
 
 
+def get_db_connection():
+    """Crea y devuelve una conexión a la base de datos usando variables de entorno."""
+    try:
+        return mysql.connector.connect(
+            host=os.getenv("DB_HOST"),
+            user=os.getenv("DB_USER"),
+            password=os.getenv("DB_PASSWORD"),
+            database=os.getenv("DB_NAME"),
+            collation=os.getenv("DB_COLLATION")
+        )
+    except mysql.connector.Error as err:
+        print(f"❌ Error crítico de conexión: {err}")
+        return None
 
 def guardar_en_mysql(datos):
     try:
-        conexion = mysql.connector.connect(
-            host="localhost",
-            user="root",
-            password="blaky2507",
-            database="itsabot",
-            collation="utf8mb4_unicode_ci"
-        )
+        conexion = get_db_connection()
+        if not conexion: return
         cursor = conexion.cursor()
         pin_plano = datos.get("pin")
         pin_hash = hashlib.sha256(pin_plano.encode('utf-8')).hexdigest()
