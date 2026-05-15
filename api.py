@@ -99,6 +99,10 @@ def get_prospectos():
 
         cursor.execute(query, tuple(params))
         prospectos = cursor.fetchall()
+        for p in prospectos:
+            if 'fecha_registro' in p and p['fecha_registro']:
+                # Convierte la fecha a formato DD/MM/YYYY
+                p['fecha_registro'] = p['fecha_registro'].strftime('%d/%m/%Y')
         return jsonify(prospectos), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -125,13 +129,24 @@ def get_stats():
             stats["carrera_top"] = v_stats.get("carrera_mas_popular", "N/A")
             stats["finalizados"] = v_stats.get("prospectos_finalizados", 0)
 
+
+        cursor.execute("SELECT COUNT(*) AS hoy FROM v_prospectos WHERE DATE(fecha_registro) = CURDATE()")
+        stats["hoy"] = cursor.fetchone().get("hoy", 0)
         # Stats de bachilleratos
         cursor.execute("SELECT nombre_bachillerato AS bach, COUNT(*) AS cnt FROM v_prospectos GROUP BY nombre_bachillerato ORDER BY cnt DESC LIMIT 6")
         stats["bach_stats"] = cursor.fetchall()
 
         # Stats de carreras
-        cursor.execute("SELECT nombre_carrera AS nombre_carrera, COUNT(*) AS cnt FROM v_prospectos GROUP BY nombre_carrera ORDER BY cnt DESC LIMIT 6")
-        stats["carrera_stats"] = cursor.fetchall()
+        cursor.execute(
+            "SELECT nombre_carrera AS nombre_carrera, COUNT(*) AS cnt FROM v_prospectos GROUP BY nombre_carrera ORDER BY cnt DESC LIMIT 6")
+        carreras = cursor.fetchall()
+        stats["carrera_stats"] = carreras
+        #Calcular el Porcentaje de la Carrera Top
+        if stats["total"] > 0 and carreras:
+            top_cnt = carreras[0]["cnt"]  # Cantidad de alumnos en la top
+            stats["carrera_top_pct"] = round((top_cnt / stats["total"]) * 100)  # Regla de 3
+        else:
+            stats["carrera_top_pct"] = 0
 
         return jsonify(stats), 200
     except Exception as e:
