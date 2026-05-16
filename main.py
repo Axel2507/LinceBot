@@ -280,6 +280,8 @@ async def procesar_chat(mensaje: MensajeUsuario, request: Request):
                 "2️⃣ Proceso de inscripción",
                 "3️⃣ Fechas de admisión",
                 "4️⃣ Costos",
+                "5️⃣ Cursos de idioma",
+                "6️⃣ Actividades extraescolares",
                 "🚪 Cerrar Sesión"
             ]
             # --- FLUJO 0: SALUDO INICIAL ---
@@ -486,20 +488,973 @@ async def procesar_chat(mensaje: MensajeUsuario, request: Request):
 
                 elif "1️⃣" in texto or "carreras" in texto:
                     respuesta_texto = "Nuestra oferta educativa es excelente. ¿De qué carrera te gustaría saber más?"
-                    opciones_lista = ["Sistemas", "Mecatrónica", "Industrial", "Bioquímica", "Electromecánica",
-                                      "Gastronomía", "🎯 Menú Principal"]
+                    opciones_lista = ["Sistemas", "Mecatrónica", "Industrial", "Bioquímica",
+                                      "Electromecánica", "Gastronomía", "Turismo", "Ciencia de Datos",
+                                      "🎯 Menú Principal"]
+                    # ===== ELECTROMECÁNICA =====
+                elif "electromecánica" in texto or "electromecanica" in texto:
+                    respuesta_texto = (
+                        "⚡ Ingeniería Electromecánica||"
+                        "Especialidad: Automatización Industrial||"
+                        "Duración: 9 semestres||"
+                        "¿Qué te gustaría conocer de esta carrera?"
+                    )
+
+                    opciones_lista = [
+                        "Perfil de ingreso Electromecánica",
+                        "Perfil de egreso Electromecánica",
+                        "Campo laboral Electromecánica",
+                        "Empresas Electromecánica",
+                        "Plan de estudios Electromecánica",
+                        "🎯 Menú Principal"
+                    ]
+
+
+                # ===== PERFIL DE INGRESO ELECTROMECÁNICA =====
+                elif "perfil de ingreso electromecánica" in texto or "perfil de ingreso electromecanica" in texto:
+                    respuesta_texto = (
+                        "📘 Perfil de ingreso - Ingeniería Electromecánica||"
+                        "• Egresado(a) de preparatoria o bachillerato||"
+                        "• Convicción por el logro de metas profesionales||"
+                        "• Conocimientos de matemáticas y física||"
+                        "• Comprensión lectora y competencias comunicativas||"
+                        "• Creatividad e interés por la ciencia y tecnología||"
+                        "• Destreza manual y solución de problemas mediante el análisis"
+                    )
+
+                    opciones_lista = [
+                        "Perfil de egreso Electromecánica",
+                        "Campo laboral Electromecánica",
+                        "Empresas Electromecánica",
+                        "Plan de estudios Electromecánica",
+                        "🎯 Menú Principal"
+                    ]
+
+
+                # ===== PERFIL DE EGRESO ELECTROMECÁNICA =====
+                elif "perfil de egreso electromecánica" in texto or "perfil de egreso electromecanica" in texto:
+                    respuesta_texto = (
+                        "🎓 Perfil de egreso - Ingeniería Electromecánica||"
+                        "El egresado será capaz de identificar, diseñar, implementar y evaluar proyectos relacionados con sistemas electromecánicos y automatización industrial.||"
+                        "También podrá diseñar sistemas eficientes para el control y automatización de procesos productivos, considerando ahorro de energía, seguridad industrial y desarrollo sustentable.||"
+                        "Además, podrá planificar, gestionar y evaluar proyectos de ingeniería con tecnologías de vanguardia."
+                    )
+
+                    opciones_lista = [
+                        "Perfil de ingreso Electromecánica",
+                        "Campo laboral Electromecánica",
+                        "Empresas Electromecánica",
+                        "Plan de estudios Electromecánica",
+                        "🎯 Menú Principal"
+                    ]
+
+
+                # ===== CAMPO LABORAL ELECTROMECÁNICA =====
+                elif "campo laboral electromecánica" in texto or "campo laboral electromecanica" in texto:
+                    respuesta_texto = (
+                        "💼 Campo laboral - Ingeniería Electromecánica||"
+                        "• Automatización industrial||"
+                        "• Sistemas electromecánicos||"
+                        "• Control de procesos productivos||"
+                        "• Mantenimiento industrial||"
+                        "• Sector energético||"
+                        "• Industria automotriz||"
+                        "• Gestión y evaluación de proyectos de ingeniería||"
+                        "• Optimización de procesos industriales"
+                    )
+
+                    opciones_lista = [
+                        "Perfil de ingreso Electromecánica",
+                        "Perfil de egreso Electromecánica",
+                        "Empresas Electromecánica",
+                        "Plan de estudios Electromecánica",
+                        "🎯 Menú Principal"
+                    ]
+
+
+                # ===== EMPRESAS ELECTROMECÁNICA =====
+                elif "empresas electromecánica" in texto or "empresas electromecanica" in texto:
+                    respuesta_texto = (
+                        "🏢 Algunas empresas donde laboran egresados de Ingeniería Electromecánica||"
+                        "• Audi||"
+                        "• Coca Cola||"
+                        "• CFE (Comisión Federal de Electricidad)||"
+                        "• Continental||"
+                        "• Sunpower||"
+                        "• Volkswagen||"
+                        "• Clúster Energético de Puebla||"
+                        "• Pemex||"
+                        "• Ayuntamiento de Atlixco"
+                    )
+
+                    opciones_lista = [
+                        "Perfil de ingreso Electromecánica",
+                        "Perfil de egreso Electromecánica",
+                        "Campo laboral Electromecánica",
+                        "Plan de estudios Electromecánica",
+                        "🎯 Menú Principal"
+                    ]
+
+
+                # ===== PLAN DE ESTUDIOS ELECTROMECÁNICA =====
+                elif "plan de estudios electromecánica" in texto or "plan de estudios electromecanica" in texto:
+                    respuesta_texto = (
+                        "📚 Plan de estudios - Ingeniería Electromecánica||"
+                        "Consulta el plan completo aquí:||"
+                        "https://atlixco.tecnm.mx/ingenieria/Electromec%C3%A1nica"
+                    )
+
+                    opciones_lista = [
+                        "Perfil de ingreso Electromecánica",
+                        "Perfil de egreso Electromecánica",
+                        "Campo laboral Electromecánica",
+                        "Empresas Electromecánica",
+                        "🎯 Menú Principal"
+                    ]
+
+                    # ===== TURISMO =====
+                elif "turismo" in texto:
+                    respuesta_texto = (
+                        "🌍 Licenciatura en Turismo||"
+                        "Formación enfocada en proyectos turísticos sustentables||"
+                        "Duración: 9 semestres||"
+                        "¿Qué te gustaría conocer de esta carrera?"
+                    )
+
+                    opciones_lista = [
+                        "Objetivo Turismo",
+                        "Perfil de ingreso Turismo",
+                        "Perfil de egreso Turismo",
+                        "Campo laboral Turismo",
+                        "Áreas de aplicación Turismo",
+                        "🎯 Menú Principal"
+                    ]
+
+
+                # ===== OBJETIVO TURISMO =====
+                elif "objetivo turismo" in texto:
+                    respuesta_texto = (
+                        "🎯 Objetivo general - Licenciatura en Turismo||"
+                        "Formar profesionales capaces de emprender, gestionar e innovar proyectos turísticos sustentables.||"
+                        "La carrera promueve la calidad, el sentido ético y el respeto al patrimonio natural y cultural, respondiendo a las necesidades y tendencias globales del turismo."
+                    )
+
+                    opciones_lista = [
+                        "Perfil de ingreso Turismo",
+                        "Perfil de egreso Turismo",
+                        "Campo laboral Turismo",
+                        "Áreas de aplicación Turismo",
+                        "🎯 Menú Principal"
+                    ]
+
+
+                # ===== PERFIL DE INGRESO TURISMO =====
+                elif "perfil de ingreso turismo" in texto:
+                    respuesta_texto = (
+                        "📘 Perfil de ingreso - Turismo||"
+                        "• Interés por el turismo, la cultura y el medio ambiente||"
+                        "• Habilidades para trabajo en equipo y liderazgo||"
+                        "• Comunicación básica y aprendizaje de idiomas||"
+                        "• Actitud de servicio y proactividad||"
+                        "• Interés por el desarrollo turístico sustentable"
+                    )
+
+                    opciones_lista = [
+                        "Objetivo Turismo",
+                        "Perfil de egreso Turismo",
+                        "Campo laboral Turismo",
+                        "Áreas de aplicación Turismo",
+                        "🎯 Menú Principal"
+                    ]
+
+
+                # ===== PERFIL DE EGRESO TURISMO =====
+                elif "perfil de egreso turismo" in texto:
+                    respuesta_texto = (
+                        "🎓 Perfil de egreso - Turismo||"
+                        "El egresado adquiere competencias en gestión sustentable y aplicación de proyectos turísticos.||"
+                        "También podrá dirigir operaciones en empresas turísticas, administrar recursos, comercializar destinos y analizar tendencias globales.||"
+                        "Además, aplicará tecnologías de la información en el sector turístico."
+                    )
+
+                    opciones_lista = [
+                        "Objetivo Turismo",
+                        "Perfil de ingreso Turismo",
+                        "Campo laboral Turismo",
+                        "Áreas de aplicación Turismo",
+                        "🎯 Menú Principal"
+                    ]
+
+
+                # ===== ÁREAS DE APLICACIÓN TURISMO =====
+                elif "áreas de aplicación turismo" in texto or "areas de aplicación turismo" in texto:
+                    respuesta_texto = (
+                        "🧭 Áreas de aplicación - Turismo||"
+                        "• Gestión y operación turística en hoteles, restaurantes y agencias de viajes||"
+                        "• Turismo sustentable y de naturaleza||"
+                        "• Diseño de actividades de ecoturismo y turismo rural||"
+                        "• Planeación y consultoría turística||"
+                        "• Mercadotecnia y comercialización de destinos turísticos"
+                    )
+
+                    opciones_lista = [
+                        "Objetivo Turismo",
+                        "Perfil de ingreso Turismo",
+                        "Perfil de egreso Turismo",
+                        "Campo laboral Turismo",
+                        "🎯 Menú Principal"
+                    ]
+
+
+                # ===== CAMPO LABORAL TURISMO =====
+                elif "campo laboral turismo" in texto:
+                    respuesta_texto = (
+                        "💼 Campo laboral - Turismo||"
+                        "• Cadenas hoteleras y empresas de hospedaje||"
+                        "• Cruceros y agencias de viajes||"
+                        "• Empresas de hospitalidad||"
+                        "• Secretarías de turismo y áreas de planeación turística||"
+                        "• Emprendimiento de negocios turísticos sustentables||"
+                        "• Parques ecoturísticos y turismo de aventura||"
+                        "• Organización de congresos, convenciones y eventos"
+                    )
+
+                    opciones_lista = [
+                        "Objetivo Turismo",
+                        "Perfil de ingreso Turismo",
+                        "Perfil de egreso Turismo",
+                        "Áreas de aplicación Turismo",
+                        "🎯 Menú Principal"
+                    ]
+
+                    # ===== SISTEMAS COMPUTACIONALES =====
+                elif "sistemas" in texto or "sistemas computacionales" in texto:
+                    respuesta_texto = (
+                        "💻 Ingeniería en Sistemas Computacionales||"
+                        "Especialidad: Ingeniería de Software||"
+                        "Duración: 9 semestres||"
+                        "¿Qué te gustaría conocer de esta carrera?"
+                    )
+
+                    opciones_lista = [
+                        "Objetivo Sistemas",
+                        "Perfil de ingreso Sistemas",
+                        "Perfil de egreso Sistemas",
+                        "Campo laboral Sistemas",
+                        "Plan de estudios Sistemas",
+                        "🎯 Menú Principal"
+                    ]
+
+
+                # ===== OBJETIVO SISTEMAS =====
+                elif "objetivo sistemas" in texto:
+                    respuesta_texto = (
+                        "🎯 Objetivo general - Sistemas Computacionales||"
+                        "Formar profesionistas líderes con visión estratégica y sentido ético, capaces de diseñar, desarrollar, implementar y administrar tecnología computacional.||"
+                        "El egresado podrá aportar soluciones innovadoras en beneficio de la sociedad dentro de un contexto global, multidisciplinario y sostenible."
+                    )
+
+                    opciones_lista = [
+                        "Perfil de ingreso Sistemas",
+                        "Perfil de egreso Sistemas",
+                        "Campo laboral Sistemas",
+                        "Plan de estudios Sistemas",
+                        "🎯 Menú Principal"
+                    ]
+
+
+                # ===== PERFIL DE INGRESO SISTEMAS =====
+                elif "perfil de ingreso sistemas" in texto:
+                    respuesta_texto = (
+                        "📘 Perfil de ingreso - Sistemas Computacionales||"
+                        "• Habilidades informáticas||"
+                        "• Interés por computadoras y dispositivos móviles||"
+                        "• Capacidad de análisis, abstracción y síntesis||"
+                        "• Razonamiento lógico para resolver problemas||"
+                        "• Interés por las Tecnologías de la Información||"
+                        "• Facilidad para comprender textos técnicos||"
+                        "• Habilidad numérica e interés por la ciencia y tecnología"
+                    )
+
+                    opciones_lista = [
+                        "Objetivo Sistemas",
+                        "Perfil de egreso Sistemas",
+                        "Campo laboral Sistemas",
+                        "Plan de estudios Sistemas",
+                        "🎯 Menú Principal"
+                    ]
+
+
+                # ===== PERFIL DE EGRESO SISTEMAS =====
+                elif "perfil de egreso sistemas" in texto:
+                    respuesta_texto = (
+                        "🎓 Perfil de egreso - Sistemas Computacionales||"
+                        "El egresado podrá desarrollar, integrar y administrar soluciones computacionales utilizando diferentes tecnologías y plataformas.||"
+                        "También podrá configurar bases de datos, diseñar redes computacionales y desarrollar aplicaciones de software eficientes.||"
+                        "Además, podrá participar en proyectos interdisciplinarios considerando aspectos éticos, legales y de desarrollo sustentable."
+                    )
+
+                    opciones_lista = [
+                        "Objetivo Sistemas",
+                        "Perfil de ingreso Sistemas",
+                        "Campo laboral Sistemas",
+                        "Plan de estudios Sistemas",
+                        "🎯 Menú Principal"
+                    ]
+
+
+                # ===== CAMPO LABORAL SISTEMAS =====
+                elif "campo laboral sistemas" in texto:
+                    respuesta_texto = (
+                        "💼 Campo laboral - Sistemas Computacionales||"
+                        "• Desarrollo y gestión de proyectos de software||"
+                        "• Administración de bases de datos||"
+                        "• Desarrollo de aplicaciones móviles||"
+                        "• Creación de sitios web||"
+                        "• Automatización de procesos y sistemas en tiempo real||"
+                        "• Desarrollo de aplicaciones IoT||"
+                        "• Diseño y monitoreo de redes de cómputo||"
+                        "• Evaluación y optimización de software"
+                    )
+
+                    opciones_lista = [
+                        "Objetivo Sistemas",
+                        "Perfil de ingreso Sistemas",
+                        "Perfil de egreso Sistemas",
+                        "Plan de estudios Sistemas",
+                        "🎯 Menú Principal"
+                    ]
+
+
+                # ===== PLAN DE ESTUDIOS SISTEMAS =====
+                elif "plan de estudios sistemas" in texto:
+                    respuesta_texto = (
+                        "📚 Plan de estudios - Sistemas Computacionales||"
+                        "Consulta el plan completo aquí:||"
+                        "https://atlixco.tecnm.mx/ingenieria/Sistemas-Computacionales"
+                    )
+
+                    opciones_lista = [
+                        "Objetivo Sistemas",
+                        "Perfil de ingreso Sistemas",
+                        "Perfil de egreso Sistemas",
+                        "Campo laboral Sistemas",
+                        "🎯 Menú Principal"
+                    ]
+
+
+                # ===== CIENCIA DE DATOS =====
+                elif "ciencia de datos" in texto or "ciencias de datos" in texto:
+                    respuesta_texto = (
+                        "📊 Ingeniería en Ciencia de Datos||"
+                        "Formación enfocada en análisis de datos e inteligencia artificial||"
+                        "Duración: 9 semestres||"
+                        "¿Qué te gustaría conocer de esta carrera?"
+                    )
+
+                    opciones_lista = [
+                        "Objetivo Ciencia de Datos",
+                        "Perfil de ingreso Ciencia de Datos",
+                        "Perfil de egreso Ciencia de Datos",
+                        "Áreas de aplicación Ciencia de Datos",
+                        "Campo laboral Ciencia de Datos",
+                        "🎯 Menú Principal"
+                    ]
+
+
+                # ===== OBJETIVO CIENCIA DE DATOS =====
+                elif "objetivo ciencia de datos" in texto:
+                    respuesta_texto = (
+                        "🎯 Objetivo general - Ciencia de Datos||"
+                        "Formar ingenieros capaces de modelar, implementar y evaluar datos provenientes de entornos complejos.||"
+                        "El estudiante utilizará técnicas de vanguardia para identificar patrones y facilitar la toma de decisiones estratégicas en sectores educativos, empresariales, sociales e industriales.||"
+                        "La formación tiene un enfoque ético, sostenible y multidisciplinario."
+                    )
+
+                    opciones_lista = [
+                        "Perfil de ingreso Ciencia de Datos",
+                        "Perfil de egreso Ciencia de Datos",
+                        "Áreas de aplicación Ciencia de Datos",
+                        "Campo laboral Ciencia de Datos",
+                        "🎯 Menú Principal"
+                    ]
+
+
+                # ===== PERFIL DE INGRESO CIENCIA DE DATOS =====
+                elif "perfil de ingreso ciencia de datos" in texto:
+                    respuesta_texto = (
+                        "📘 Perfil de ingreso - Ciencia de Datos||"
+                        "• Habilidades lógico-matemáticas y de programación||"
+                        "• Pensamiento crítico y analítico||"
+                        "• Capacidad creativa y resolución de problemas||"
+                        "• Liderazgo y trabajo en equipo multidisciplinario||"
+                        "• Conciencia ética y compromiso social||"
+                        "• Aprendizaje autónomo y capacidad de síntesis"
+                    )
+
+                    opciones_lista = [
+                        "Objetivo Ciencia de Datos",
+                        "Perfil de egreso Ciencia de Datos",
+                        "Áreas de aplicación Ciencia de Datos",
+                        "Campo laboral Ciencia de Datos",
+                        "🎯 Menú Principal"
+                    ]
+
+
+                # ===== PERFIL DE EGRESO CIENCIA DE DATOS =====
+                elif "perfil de egreso ciencia de datos" in texto:
+                    respuesta_texto = (
+                        "🎓 Perfil de egreso - Ciencia de Datos||"
+                        "El egresado dominará técnicas de recolección, limpieza y análisis de datos para apoyar la toma de decisiones estratégicas.||"
+                        "También podrá desarrollar arquitecturas de datos, modelos de aprendizaje automático y soluciones basadas en inteligencia artificial.||"
+                        "Además, podrá gestionar proyectos de ciencia de datos con responsabilidad ética y social."
+                    )
+
+                    opciones_lista = [
+                        "Objetivo Ciencia de Datos",
+                        "Perfil de ingreso Ciencia de Datos",
+                        "Áreas de aplicación Ciencia de Datos",
+                        "Campo laboral Ciencia de Datos",
+                        "🎯 Menú Principal"
+                    ]
+
+
+                # ===== ÁREAS DE APLICACIÓN CIENCIA DE DATOS =====
+                elif "áreas de aplicación ciencia de datos" in texto or "areas de aplicación ciencia de datos" in texto:
+                    respuesta_texto = (
+                        "🧠 Áreas de aplicación - Ciencia de Datos||"
+                        "• Análisis predictivo y prescriptivo||"
+                        "• Inteligencia Artificial y Machine Learning||"
+                        "• Visualización de datos y dashboards||"
+                        "• Gestión de bases de datos y Big Data||"
+                        "• Optimización de procesos empresariales||"
+                        "• Desarrollo de soluciones inteligentes"
+                    )
+
+                    opciones_lista = [
+                        "Objetivo Ciencia de Datos",
+                        "Perfil de ingreso Ciencia de Datos",
+                        "Perfil de egreso Ciencia de Datos",
+                        "Campo laboral Ciencia de Datos",
+                        "🎯 Menú Principal"
+                    ]
+
+
+                # ===== CAMPO LABORAL CIENCIA DE DATOS =====
+                elif "campo laboral ciencia de datos" in texto:
+                    respuesta_texto = (
+                        "💼 Campo laboral - Ciencia de Datos||"
+                        "• Empresas de consultoría||"
+                        "• Sector financiero y aseguradoras||"
+                        "• Comercio electrónico y marketing digital||"
+                        "• Institutos de investigación y centros de datos||"
+                        "• Instituciones públicas y bancos centrales||"
+                        "• Startups tecnológicas||"
+                        "• Empresas de tecnología, banca y manufactura"
+                    )
+
+                    opciones_lista = [
+                        "Objetivo Ciencia de Datos",
+                        "Perfil de ingreso Ciencia de Datos",
+                        "Perfil de egreso Ciencia de Datos",
+                        "Áreas de aplicación Ciencia de Datos",
+                        "🎯 Menú Principal"
+                    ]
+
+
+                # ===== GASTRONOMÍA =====
+                elif "gastronomía" in texto or "gastronomia" in texto:
+                    respuesta_texto = (
+                        "🍳 Licenciatura en Gastronomía||"
+                        "Especialidad: Cocina Mexicana||"
+                        "Duración: 9 semestres||"
+                        "¿Qué te gustaría conocer de esta carrera?"
+                    )
+
+                    opciones_lista = [
+                        "Perfil de ingreso Gastronomía",
+                        "Perfil de egreso Gastronomía",
+                        "Campo laboral Gastronomía",
+                        "Plan de estudios Gastronomía",
+                        "🎯 Menú Principal"
+                    ]
+
+
+                # ===== PERFIL DE INGRESO GASTRONOMÍA =====
+                elif "perfil de ingreso gastronomía" in texto or "perfil de ingreso gastronomia" in texto:
+                    respuesta_texto = (
+                        "📘 Perfil de ingreso - Gastronomía||"
+                        "• Bachillerato concluido, preferentemente en áreas técnicas, administrativas o de salud||"
+                        "• Creatividad y sensibilidad artística||"
+                        "• Facilidad para el trabajo en equipo||"
+                        "• Dominio del español y bases de idioma inglés||"
+                        "• Ética de servicio y espíritu innovador||"
+                        "• Enfoque en metas y disciplina"
+                    )
+
+                    opciones_lista = [
+                        "Perfil de egreso Gastronomía",
+                        "Campo laboral Gastronomía",
+                        "Plan de estudios Gastronomía",
+                        "🎯 Menú Principal"
+                    ]
+
+
+                # ===== PERFIL DE EGRESO GASTRONOMÍA =====
+                elif "perfil de egreso gastronomía" in texto or "perfil de egreso gastronomia" in texto:
+                    respuesta_texto = (
+                        "🎓 Perfil de egreso - Gastronomía||"
+                        "El egresado será capaz de ejecutar técnicas culinarias nacionales e internacionales con creatividad y calidad.||"
+                        "También podrá administrar negocios de alimentos y bebidas, garantizando normas de higiene e inocuidad alimentaria.||"
+                        "Además, podrá diseñar experiencias y conceptos gastronómicos innovadores basados en tendencias del mercado."
+                    )
+
+                    opciones_lista = [
+                        "Perfil de ingreso Gastronomía",
+                        "Campo laboral Gastronomía",
+                        "Plan de estudios Gastronomía",
+                        "🎯 Menú Principal"
+                    ]
+
+
+                # ===== CAMPO LABORAL GASTRONOMÍA =====
+                elif "campo laboral gastronomía" in texto or "campo laboral gastronomia" in texto:
+                    respuesta_texto = (
+                        "💼 Campo laboral - Gastronomía||"
+                        "• Restaurantes y hoteles||"
+                        "• Cruceros y clubes privados||"
+                        "• Bares y coctelería||"
+                        "• Comedores industriales||"
+                        "• Empresas de catering y eventos||"
+                        "• Industria alimentaria||"
+                        "• Consultoría gastronómica||"
+                        "• Emprendimiento propio y docencia"
+                    )
+
+                    opciones_lista = [
+                        "Perfil de ingreso Gastronomía",
+                        "Perfil de egreso Gastronomía",
+                        "Plan de estudios Gastronomía",
+                        "🎯 Menú Principal"
+                    ]
+
+
+                # ===== PLAN DE ESTUDIOS GASTRONOMÍA =====
+                elif "plan de estudios gastronomía" in texto or "plan de estudios gastronomia" in texto:
+                    respuesta_texto = (
+                        "📚 Plan de estudios - Gastronomía||"
+                        "Consulta el plan completo aquí:||"
+                        "https://atlixco.tecnm.mx/ingenieria/Gastronomia"
+                    )
+
+                    opciones_lista = [
+                        "Perfil de ingreso Gastronomía",
+                        "Perfil de egreso Gastronomía",
+                        "Campo laboral Gastronomía",
+                        "🎯 Menú Principal"
+                    ]
+
+                    # ===== MECATRÓNICA =====
+                elif "mecatrónica" in texto or "mecatronica" in texto:
+                    respuesta_texto = (
+                        "🤖 Ingeniería Mecatrónica||"
+                        "Especialidad: Automatización de procesos||"
+                        "Duración: 9 semestres||"
+                        "¿Qué te gustaría conocer de esta carrera?"
+                    )
+
+                    opciones_lista = [
+                        "Objetivo Mecatrónica",
+                        "Perfil de ingreso Mecatrónica",
+                        "Perfil de egreso Mecatrónica",
+                        "Campo laboral Mecatrónica",
+                        "Plan de estudios Mecatrónica",
+                        "🎯 Menú Principal"
+                    ]
+
+
+                # ===== OBJETIVO MECATRÓNICA =====
+                elif "objetivo mecatrónica" in texto or "objetivo mecatronica" in texto:
+                    respuesta_texto = (
+                        "🎯 Objetivo general - Mecatrónica||"
+                        "Formar profesionistas capaces de diseñar, construir, innovar y administrar sistemas mecatrónicos y robóticos.||"
+                        "El egresado podrá integrar, operar y mantener sistemas automatizados con liderazgo, creatividad y compromiso ético dentro de un marco sustentable."
+                    )
+
+                    opciones_lista = [
+                        "Perfil de ingreso Mecatrónica",
+                        "Perfil de egreso Mecatrónica",
+                        "Campo laboral Mecatrónica",
+                        "Plan de estudios Mecatrónica",
+                        "🎯 Menú Principal"
+                    ]
+
+
+                # ===== PERFIL DE INGRESO MECATRÓNICA =====
+                elif "perfil de ingreso mecatrónica" in texto or "perfil de ingreso mecatronica" in texto:
+                    respuesta_texto = (
+                        "📘 Perfil de ingreso - Mecatrónica||"
+                        "• Conocimientos básicos en ciencias naturales y exactas||"
+                        "• Habilidades de análisis, síntesis y autoaprendizaje||"
+                        "• Interés por la robótica, programación y tecnología||"
+                        "• Capacidad de trabajo individual y en equipo||"
+                        "• Interés por el diseño y emprendimiento||"
+                        "• Disposición para aprender y mejorar continuamente"
+                    )
+
+                    opciones_lista = [
+                        "Objetivo Mecatrónica",
+                        "Perfil de egreso Mecatrónica",
+                        "Campo laboral Mecatrónica",
+                        "Plan de estudios Mecatrónica",
+                        "🎯 Menú Principal"
+                    ]
+
+
+                # ===== PERFIL DE EGRESO MECATRÓNICA =====
+                elif "perfil de egreso mecatrónica" in texto or "perfil de egreso mecatronica" in texto:
+                    respuesta_texto = (
+                        "🎓 Perfil de egreso - Mecatrónica||"
+                        "El egresado será capaz de diseñar, automatizar, controlar y mantener sistemas mecatrónicos utilizando tecnologías eléctricas, electrónicas y computacionales.||"
+                        "También podrá liderar proyectos multidisciplinarios, innovar soluciones tecnológicas y participar en procesos industriales con responsabilidad social y sustentable."
+                    )
+
+                    opciones_lista = [
+                        "Objetivo Mecatrónica",
+                        "Perfil de ingreso Mecatrónica",
+                        "Campo laboral Mecatrónica",
+                        "Plan de estudios Mecatrónica",
+                        "🎯 Menú Principal"
+                    ]
+
+
+                # ===== CAMPO LABORAL MECATRÓNICA =====
+                elif "campo laboral mecatrónica" in texto or "campo laboral mecatronica" in texto:
+                    respuesta_texto = (
+                        "💼 Campo laboral - Mecatrónica||"
+                        "• Industria automotriz||"
+                        "• Robótica industrial||"
+                        "• Automatización y control de procesos||"
+                        "• Industria aeroespacial||"
+                        "• Mantenimiento industrial||"
+                        "• Industria energética||"
+                        "• Área médica y tecnológica||"
+                        "• Desarrollo de proyectos independientes"
+                    )
+
+                    opciones_lista = [
+                        "Objetivo Mecatrónica",
+                        "Perfil de ingreso Mecatrónica",
+                        "Perfil de egreso Mecatrónica",
+                        "Plan de estudios Mecatrónica",
+                        "🎯 Menú Principal"
+                    ]
+
+
+                # ===== PLAN DE ESTUDIOS MECATRÓNICA =====
+                elif "plan de estudios mecatrónica" in texto or "plan de estudios mecatronica" in texto:
+                    respuesta_texto = (
+                        "📚 Plan de estudios - Mecatrónica||"
+                        "Consulta el plan completo aquí:||"
+                        "https://atlixco.tecnm.mx/ingenieria/Mecatronica"
+                    )
+
+                    opciones_lista = [
+                        "Objetivo Mecatrónica",
+                        "Perfil de ingreso Mecatrónica",
+                        "Perfil de egreso Mecatrónica",
+                        "Campo laboral Mecatrónica",
+                        "🎯 Menú Principal"
+                    ]
+
+
+
+                # ===== INDUSTRIAL =====
+                elif "industrial" in texto or "ingeniería industrial" in texto or "ingenieria industrial" in texto:
+                    respuesta_texto = (
+                        "🏭 Ingeniería Industrial||"
+                        "Especialidad: Calidad y productividad||"
+                        "Duración: 9 semestres||"
+                        "¿Qué te gustaría conocer de esta carrera?"
+                    )
+
+                    opciones_lista = [
+                        "Perfil de ingreso Industrial",
+                        "Perfil de egreso Industrial",
+                        "Campo laboral Industrial",
+                        "Plan de estudios Industrial",
+                        "🎯 Menú Principal"
+                    ]
+
+
+                # ===== PERFIL DE INGRESO INDUSTRIAL =====
+                elif "perfil de ingreso industrial" in texto:
+                    respuesta_texto = (
+                        "📘 Perfil de ingreso - Ingeniería Industrial||"
+                        "• Egresado(a) de preparatoria o bachillerato||"
+                        "• Interés por la ciencia y la tecnología||"
+                        "• Creatividad e innovación||"
+                        "• Interés por la mejora continua||"
+                        "• Deseo de superación y excelencia profesional"
+                    )
+
+                    opciones_lista = [
+                        "Perfil de egreso Industrial",
+                        "Campo laboral Industrial",
+                        "Plan de estudios Industrial",
+                        "🎯 Menú Principal"
+                    ]
+
+
+                # ===== PERFIL DE EGRESO INDUSTRIAL =====
+                elif "perfil de egreso industrial" in texto:
+                    respuesta_texto = (
+                        "🎓 Perfil de egreso - Ingeniería Industrial||"
+                        "El egresado podrá optimizar procesos productivos, mejorar la calidad y productividad de las organizaciones y tomar decisiones estratégicas mediante el uso de ciencia y tecnología.||"
+                        "También desarrollará habilidades de liderazgo, innovación y trabajo en equipo, aplicando nuevas tecnologías como inteligencia artificial para resolver problemas industriales."
+                    )
+
+                    opciones_lista = [
+                        "Perfil de ingreso Industrial",
+                        "Campo laboral Industrial",
+                        "Plan de estudios Industrial",
+                        "🎯 Menú Principal"
+                    ]
+
+
+                # ===== CAMPO LABORAL INDUSTRIAL =====
+                elif "campo laboral industrial" in texto:
+                    respuesta_texto = (
+                        "💼 Campo laboral - Ingeniería Industrial||"
+                        "• Industria manufacturera||"
+                        "• Logística y cadena de suministro||"
+                        "• Consultoría empresarial||"
+                        "• Gestión de calidad y productividad||"
+                        "• Administración de proyectos||"
+                        "• Empresas nacionales e internacionales||"
+                        "• Optimización de procesos y recursos"
+                    )
+
+                    opciones_lista = [
+                        "Perfil de ingreso Industrial",
+                        "Perfil de egreso Industrial",
+                        "Plan de estudios Industrial",
+                        "🎯 Menú Principal"
+                    ]
+
+
+                # ===== PLAN DE ESTUDIOS INDUSTRIAL =====
+                elif "plan de estudios industrial" in texto:
+                    respuesta_texto = (
+                        "📚 Plan de estudios - Ingeniería Industrial||"
+                        "Consulta el plan completo aquí:||"
+                        "https://atlixco.tecnm.mx/ingenieria/Industrial"
+                    )
+
+                    opciones_lista = [
+                        "Perfil de ingreso Industrial",
+                        "Perfil de egreso Industrial",
+                        "Campo laboral Industrial",
+                        "🎯 Menú Principal"
+                    ]
+
+
+
+                # ===== BIOQUÍMICA =====
+                elif "bioquímica" in texto or "bioquimica" in texto:
+                    respuesta_texto = (
+                        "🧪 Ingeniería Bioquímica||"
+                        "Especialidad: Alimentos||"
+                        "Duración: 9 semestres||"
+                        "¿Qué te gustaría conocer de esta carrera?"
+                    )
+
+                    opciones_lista = [
+                        "Perfil de ingreso Bioquímica",
+                        "Perfil de egreso Bioquímica",
+                        "Campo laboral Bioquímica",
+                        "Empresas Bioquímica",
+                        "Plan de estudios Bioquímica",
+                        "🎯 Menú Principal"
+                    ]
+
+
+                # ===== PERFIL DE INGRESO BIOQUÍMICA =====
+                elif "perfil de ingreso bioquímica" in texto or "perfil de ingreso bioquimica" in texto:
+                    respuesta_texto = (
+                        "📘 Perfil de ingreso - Bioquímica||"
+                        "• Conocimientos en matemáticas y ciencias experimentales||"
+                        "• Capacidad de análisis y solución de problemas||"
+                        "• Habilidad para trabajar en equipo||"
+                        "• Comunicación oral y escrita||"
+                        "• Actitud crítica y reflexiva||"
+                        "• Valores de honestidad y respeto"
+                    )
+
+                    opciones_lista = [
+                        "Perfil de egreso Bioquímica",
+                        "Campo laboral Bioquímica",
+                        "Empresas Bioquímica",
+                        "Plan de estudios Bioquímica",
+                        "🎯 Menú Principal"
+                    ]
+
+
+                # ===== PERFIL DE EGRESO BIOQUÍMICA =====
+                elif "perfil de egreso bioquímica" in texto or "perfil de egreso bioquimica" in texto:
+                    respuesta_texto = (
+                        "🎓 Perfil de egreso - Bioquímica||"
+                        "El egresado será capaz de aplicar conocimientos de ciencia y tecnología de alimentos, aseguramiento de calidad e inocuidad alimentaria.||"
+                        "También podrá desarrollar productos innovadores, optimizar procesos productivos y contribuir al sector agroalimentario con enfoque sustentable."
+                    )
+
+                    opciones_lista = [
+                        "Perfil de ingreso Bioquímica",
+                        "Campo laboral Bioquímica",
+                        "Empresas Bioquímica",
+                        "Plan de estudios Bioquímica",
+                        "🎯 Menú Principal"
+                    ]
+
+
+                # ===== CAMPO LABORAL BIOQUÍMICA =====
+                elif "campo laboral bioquímica" in texto or "campo laboral bioquimica" in texto:
+                    respuesta_texto = (
+                        "💼 Campo laboral - Bioquímica||"
+                        "• Industria alimentaria||"
+                        "• Empresas de bebidas y alimentos||"
+                        "• Biotecnología vegetal||"
+                        "• Ingeniería ambiental||"
+                        "• Centros de investigación||"
+                        "• Instituciones educativas||"
+                        "• Desarrollo y aseguramiento de calidad||"
+                        "• Emprendimiento propio"
+                    )
+
+                    opciones_lista = [
+                        "Perfil de ingreso Bioquímica",
+                        "Perfil de egreso Bioquímica",
+                        "Empresas Bioquímica",
+                        "Plan de estudios Bioquímica",
+                        "🎯 Menú Principal"
+                    ]
+
+
+                # ===== EMPRESAS BIOQUÍMICA =====
+                elif "empresas bioquímica" in texto or "empresas bioquimica" in texto:
+                    respuesta_texto = (
+                        "🏢 Algunas empresas donde laboran egresados de Bioquímica||"
+                        "• Bimbo||"
+                        "• Coca Cola||"
+                        "• Italpasta||"
+                        "• Sabormex||"
+                        "• Leonali||"
+                        "• Ayuntamiento de Atlixco"
+                    )
+
+                    opciones_lista = [
+                        "Perfil de ingreso Bioquímica",
+                        "Perfil de egreso Bioquímica",
+                        "Campo laboral Bioquímica",
+                        "Plan de estudios Bioquímica",
+                        "🎯 Menú Principal"
+                    ]
+
+
+                # ===== PLAN DE ESTUDIOS BIOQUÍMICA =====
+                elif "plan de estudios bioquímica" in texto or "plan de estudios bioquimica" in texto:
+                    respuesta_texto = (
+                        "📚 Plan de estudios - Bioquímica||"
+                        "Consulta el plan completo aquí:||"
+                        "https://atlixco.tecnm.mx/ingenieria/Bioquimica"
+                    )
+
+                    opciones_lista = [
+                        "Perfil de ingreso Bioquímica",
+                        "Perfil de egreso Bioquímica",
+                        "Campo laboral Bioquímica",
+                        "Empresas Bioquímica",
+                        "🎯 Menú Principal"
+                    ]
 
                 elif "2️⃣" in texto or "inscripción" in texto or "inscripcion" in texto:
-                    respuesta_texto = "El proceso es muy sencillo:||1. Realizas tu registro aquí.||2. Pagas tu ficha.||3. Presentas examen de admisión.||4. Entrega de documentos.||¿Te gustaría saber los requisitos de documentos?"
-                    opciones_lista = ["Requisitos", "🎯 Menú Principal"]
+                    respuesta_texto = (
+                        "¡Excelente decisión! 🤩 Inscribirte a nuestra comunidad Tec es el primer paso hacia tu éxito profesional, y el proceso es súper sencillo. Te guío paso a paso: ||"
+                        "1️⃣ <b>Pago de Ficha:</b> Ingresa a la página oficial de pagos del Estado en <a href='https://rl.puebla.gob.mx/' target='_blank'>rl.puebla.gob.mx</a>. En la sección de Educación busca 'ITSA' o 'Tecnológico de Atlixco' y genera tu línea de captura para la ficha de admisión. ||"
+                        "2️⃣ <b>Registro en Línea:</b> Llena el formulario con tus datos y sube en formato PDF tu Acta de Nacimiento, CURP actualizada, constancia de bachillerato y comprobante de domicilio. ||"
+                        "3️⃣ <b>Examen de Admisión:</b> Preséntate en nuestro campus el día que te corresponda con tu pase de ingreso, identificación con foto, lápiz y goma. ¡Ve con toda la actitud ganadora! 🧠✨ ||"
+                        "4️⃣ <b>Inscripción Presencial:</b> ¡Si fuiste aceptado, felicidades! Solo tendrás que llevar tus papeles originales a Control Escolar y ponerte una camisa blanca para la foto de tu nueva credencial de estudiante. 📸 ||"
+                        "¿Te gustaría conocer las fechas exactas de este proceso o prefieres que hablemos de los costos?"
+                    )
+                    opciones_lista = [
+                        "3️⃣ Fechas de admisión",
+                        "4️⃣ Costos",
+                        "🎯 Menú Principal"
+                    ]
 
                 elif "3️⃣" in texto or "fechas" in texto:
-                    respuesta_texto = "📅 El próximo examen de admisión es el **24 de Junio**.||La entrega de fichas cierra el 15 de Junio. ¡No te quedes fuera!"
-                    opciones_lista = ["🎯 Menú Principal"]
+                    respuesta_texto = (
+                        "¡Que no se te pasen las fechas clave! 📅 Toma nota de nuestra convocatoria más reciente para que asegures tu lugar a tiempo: ||"
+                        "📝 <b>Entrega de Fichas:</b> Tenemos periodo abierto del 2 de junio al 20 de julio. ¡No lo dejes para el último día! ||"
+                        "💻 <b>Curso de preparación:</b> Miércoles 23 de julio (modalidad en línea para tu comodidad). ||"
+                        "✍️ <b>Examen de Admisión:</b> Se aplicará de forma presencial los días viernes 25 y sábado 26 de julio en nuestras instalaciones del ITSA. ||"
+                        "📢 <b>Resultados:</b> El lunes 28 de julio a las 15:00 horas publicaremos la lista de aceptados en nuestra página y en tu correo electrónico. ||"
+                        "Puedes revisar nuestra convocatoria completa en <a href='https://atlixco.tecnm.mx/' target='_blank'>atlixco.tecnm.mx</a>. ¿Te ayudo con los costos o quieres explorar las carreras?"
+                    )
+                    opciones_lista = [
+                        "4️⃣ Costos",
+                        "1️⃣ Información de carreras",
+                        "🎯 Menú Principal"
+                    ]
 
                 elif "4️⃣" in texto or "costos" in texto:
-                    respuesta_texto = "💳 La ficha de admisión tiene un costo de **$850 MXN**.||La inscripción semestral es de **$2,400 MXN**. ¿Deseas información de becas?"
-                    opciones_lista = ["Becas", "🎯 Menú Principal"]
+                    respuesta_texto = (
+                        "¡Hablemos de tu inversión educativa! 🤩 Déjame decirte que estudiar en el ITSA es una de las opciones más accesibles y con mejor nivel académico de la región. Te desgloso los costos oficiales aproximados para nuevo ingreso: ||"
+                        "💳 <b>Ficha de admisión y examen:</b> $860.00 pesos (ojo, en rondas extraordinarias podría llegar a $1,340.00, ¡así que aprovecha a tiempo!). ||"
+                        "📚 <b>Curso propedéutico:</b> De $725.00 a $2,130.00 pesos, dependiendo de la convocatoria vigente. ||"
+                        "🏫 <b>Inscripción Semestral:</b> Entre $1,300.00 y $1,375.00 pesos. ¡Y lo mejor de todo es que NO cobramos mensualidades! ||"
+                        "🪪 <b>Credencial de estudiante:</b> Solo de $75.00 a $80.00 pesos. ||"
+                        "💡 <b>¡Súper Tip!</b> En algunas convocatorias lanzamos un <b>Pago Único Anticipado</b> por aproximadamente $2,240.00 pesos que ya te incluye inscripción, examen diagnóstico y propedéutico. ¡Un gran ahorro! ||"
+                        "¿Quieres que te cuente sobre nuestro departamento de idiomas o prefieres ver las fechas de admisión?"
+                    )
+                    opciones_lista = [
+                        "5️⃣ Lenguas extranjeras",
+                        "3️⃣ Fechas de admisión",
+                        "🎯 Menú Principal"
+                    ]
+
+                elif "5️⃣" in texto or "cursos de idioma" in texto:
+                    respuesta_texto = (
+                        "¡Yes! ¡Oui! 🌎 Hoy en día dominar otro idioma ya no es un lujo, ¡es una necesidad para destacar en el mundo profesional y viajar! En el ITSA tenemos un Departamento de Lenguas Extranjeras de primer nivel. Te cuento cómo funciona: ||"
+                        "🗣️ <b>¿Qué idiomas ofrecemos?</b> El <b>Inglés</b> es nuestra lengua principal y es requisito para titularte en todas las ingenierías. Pero, ¡atención! Si vas para la Licenciatura en Gastronomía, tienes el privilegio de elegir entre estudiar Inglés o Francés. Solo piénsalo bien, porque una vez que inicias un idioma, no se permiten cambios (permutas). ||"
+                        "💰 <b>Inversión por nivel:</b> El curso regular o semipresencial es súper accesible, solo $1,000.00 pesos. Si prefieres avanzar rápido, el curso intensivo está en $2,000.00 pesos. ||"
+                        "💻 <b>Material digital:</b> Olvídate de cargar libros pesados. Aquí usamos plataformas interactivas (como la plataforma Sonhos) que cuestan alrededor de $525.00 pesos por nivel. ||"
+                        "¡Prepárate para ser un profesional sin fronteras! ✈️ ¿Te gustaría volver al menú de carreras o revisar los costos?"
+                    )
+                    opciones_lista = [
+                        "1️⃣ Información de carreras",
+                        "4️⃣ Costos",
+                        "🎯 Menú Principal"
+                    ]
+                 # ==========================================
+                 # FLUJO 6: ACTIVIDADES EXTRAESCOLARES
+                # ==========================================
+                elif "6️⃣" in texto or "extraescolares" in texto:
+                    estado_conversacion["paso_actual"] = "menu_principal"
+                    respuesta_texto = (
+                        "¡No todo es estar en el salón de clases! 🏃‍♂️🎨 En el ITSA sabemos que la vida universitaria debe ser increíble, por eso tenemos un montón de Actividades Extraescolares donde harás amigos, liberarás estrés y, lo mejor de todo, ¡te darán créditos complementarios para tu titulación! ||"
+                        "Tenemos opciones para todos los gustos: ||"
+                        "🏆 <b>Deportivas:</b> Saca tu lado competitivo en nuestros equipos de Fútbol (varonil y femenil), Baloncesto, Voleibol, Ping Pong, Ajedrez o incluso Football Americano y Flag. ¡Únete a la Porra Lince! ||"
+                        "🎭 <b>Culturales y Artísticas:</b> Si lo tuyo es el arte, te encantará el Taller de Pirograbado y Dibujo, Danza Folklórica, Teatro, Banda de Música y hasta nuestro taller de Radio. ||"
+                        "🇲🇽 <b>Cívicas e Inclusivas:</b> Participa con orgullo en la Escolta o aprende Lenguaje de Señas Mexicana, una habilidad increíble para tu currículum. ||"
+                        "Recuerda que cada taller tiene cupo limitado y puedes inscribirte en el portal oficial <a href='https://atlixco.tecnm.mx/alumnos/complementarias' target='_blank'>atlixco.tecnm.mx/alumnos/complementarias</a>. ||"
+                        "¿Qué te parece? ¡Serás un Lince de corazón! 🐾 ¿Te cuento del proceso de inscripción o prefieres ver las carreras que ofrecemos?"
+                    )
+                    opciones_lista = [
+                        "2️⃣ Proceso de inscripción",
+                        "1️⃣ Información de carreras",
+                        "🎯 Menú Principal"
+                    ]
 
                 elif "🎯 menú principal" in texto or "menu" in texto:
                     respuesta_texto = MENU_PRINCIPAL_TEXTO
