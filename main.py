@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import edge_tts
@@ -42,11 +42,18 @@ load_dotenv()
 client = Groq(api_key = os.getenv("GROQ_API_KEY"))
 
 
-estado_conversacion = {
-    "paso_actual": "saludo_inicial",
-    "datos_usuario": {},
-    "codigo_verificacion": None # Para guardar el código temporal del correo
-}
+# Ahora es un diccionario que guardará a TODOS los usuarios separados por su IP
+sesiones_usuarios = {}
+
+def obtener_sesion(ip_usuario):
+    # Si es la primera vez que esta IP escribe, le creamos su expediente en blanco
+    if ip_usuario not in sesiones_usuarios:
+        sesiones_usuarios[ip_usuario] = {
+            "paso_actual": "saludo_inicial",
+            "datos_usuario": {},
+            "codigo_verificacion": None
+        }
+    return sesiones_usuarios[ip_usuario]
 
 class MensajeUsuario(BaseModel):
     texto: str
@@ -255,8 +262,11 @@ def obtener_id_carrera(nombre_buscado):
 
 
 @app.post("/chat/")
-async def procesar_chat(mensaje: MensajeUsuario):
-            global estado_conversacion
+async def procesar_chat(mensaje: MensajeUsuario, request: Request):
+            # Identificamos a la persona por su IP de internet
+            ip_usuario = request.client.host
+            # Sacamos su expediente único (adiós al global)
+            estado_conversacion = obtener_sesion(ip_usuario)
             texto = mensaje.texto.lower().strip()
             respuesta_texto = ""
             opciones_lista = []
